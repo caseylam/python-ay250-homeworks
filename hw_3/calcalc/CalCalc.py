@@ -6,36 +6,56 @@ import requests
 import pdb
 import re
 
+number_dict = {'one' : '*1.',
+               'ten' : '*10.',
+               'hundred' : '*100.',
+               'thousand' : '*1000.',
+               'million' : '*10.**6',
+               'billion' : '*10.**9',
+               'trillion' : '*10.**12',
+               'quadrillion' : '*10.**15',
+               'quintillion' : '*10.**18',
+               'sextillion' : '*10.**21',
+               'septillion' : '*10.**24'}
+
 def calculate(in_str, return_float=False):
     # Evaluate remotely using wolfram.
     if return_float:
+        # Convert question to URL and sent to wolfram
         url_str = urllib.parse.quote_plus(in_str)
         app_id = 'Q9RQK4-QK54QKTJ72'
         url_wolfram = 'https://api.wolframalpha.com/v2/query?input=' + url_str + '&appid=' + app_id + '&output=json&scanner=Data'
-        # url_wolfram = 'https://api.wolframalpha.com/v2/query?input=' + url_str + '&appid=' + app_id
-        #url_wolfram = 'https://api.wolframalpha.com/v1/result?i=How+many+ounces+are+in+a+gallon%3F&appid=DEMO'
         
         try:
-            # Need some condition for "about"
-            # No short answer available
-            # hundred, ten, thousand, etc...
+            # FIXME: raise error if No short answer available
             answer = requests.get(url_wolfram)
             answer_text = answer.json()['queryresult']['pods'][0]['subpods'][0]['img']['title']
             print('Answer (direct from Wolfram): ', answer_text)
-            #answer_text.rstrip().split('(') 
-            #answer_text.rstrip().split('\n') 
+
+            # Simplify answers that are convoluted
             answer_text = answer_text.split('\n', 1)[0] # skip parenthetical clarifications, units.
-            answer_text = answer_text.split(' (', 1)[0] # skip blah blah details.
+            answer_text = answer_text.split(' (', 1)[0] # skip blah blah details. THE SPACE IS IMPORTANT
             answer_text = answer_text.split('to', 1)[0] # give lower range
-            #print(answer_text)
-            #answer_text = requests.get(url_wolfram).text
-            #print(answer_text)
+
+            # Convert math symbols to be python.
             answer_text = answer_text.replace('×', '*')
             answer_text = answer_text.replace('^', '**')
             #answer_text = answer_text.replace(' to the ', '**')
             #answer_text = answer_text.replace(' times ', '*')
+            
+            # Convert numbers spelled out in words to numbers
+            if any([x in answer_text for x in number_dict.keys()]):
+                for key in number_dict.keys():
+                    if key in answer_text:
+                        answer_text = answer_text.replace(key, number_dict[key])
+            
+            # Fix potential overflow due to integers only.
+            if '**' in answer_text:
+                if '.' not in answer_text:
+                    answer_text += '.'
+            
+            # Clean up anything that is not a number or relevant math symbol
             answer_text = re.sub('[^1234567890*.]', '', answer_text)
-            print('Answer (cleaned up): ', answer_text)
             answer = float(numexpr.evaluate(answer_text))
             print('Answer (float): ', answer)
             return answer
@@ -47,10 +67,12 @@ def calculate(in_str, return_float=False):
     # Evaluate locally using python.
     else:
         try:
-            print('input: ', in_str)
-            print('numexpr: ', numexpr.evaluate(in_str))
+            # Fix potential overflow due to integers only.
+            if '**' in in_str:
+                if '.' not in in_str:
+                    in_str += '.'
             answer = float(numexpr.evaluate(in_str))
-            print('floated: ', answer)
+            print(answer)
             return answer
         except:
             print('This expression can\'t be evaluated numerically. \n' + 
@@ -78,12 +100,9 @@ if __name__ == '__main__':
                         help='Numbers', default=None)
     parser.add_argument('-w', action='store', dest='question_wolfram',
                         help='Words', default=None)
-    # Maybe edit this, so that instead it will return as string.
 
     results = parser.parse_args()
     
-#    print(results.question_python)
-#    print(results.question_wolfram)
     
     if (results.question_python != None) & (results.question_wolfram != None):
         raise Exception('Make up your mind! You can only set one flag.')
