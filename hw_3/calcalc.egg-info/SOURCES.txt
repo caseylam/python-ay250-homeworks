@@ -1,0 +1,9 @@
+LICENSE.txt
+MANIFEST.in
+README.md
+setup.py
+calcalc/CalCalc.py
+calcalc.egg-info/PKG-INFO
+calcalc.egg-info/SOURCES.txt
+calcalc.egg-info/dependency_links.txt
+calcalc.egg-info/top_level.txt
