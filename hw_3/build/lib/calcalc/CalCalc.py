@@ -1,4 +1,3 @@
-# Using the full wolfram API
 
 import argparse
 import numexpr
@@ -20,14 +19,20 @@ number_dict = {'one' : '*1.',
                'septillion' : '*10.**24'}
 
 def calculate(in_str, return_float=False):
-    # Evaluate remotely using wolfram.
+    """
+    Pass in a string and have it evaluated by internally by Python
+    or externally by WolframAlpha. 
+    
+    return_float : bool
+        False : will use python
+        True : will use wolfram
+    """
     if return_float:
         # Convert question to URL and sent to wolfram
         url_str = urllib.parse.quote_plus(in_str)
         app_id = 'Q9RQK4-QK54QKTJ72'
         url_wolfram = 'https://api.wolframalpha.com/v2/query?input=' + url_str \
                         + '&appid=' + app_id + '&output=json&scanner=Data,Identity'
-        
         try:
             answer = requests.get(url_wolfram)
 
@@ -67,8 +72,8 @@ def calculate(in_str, return_float=False):
             return answer
         
         except:
-            print('This question\'s answer isn\'t convertable to a numerical string. \n' + 
-                  'Try rephrasing your question (e.g. specify units of the result).')
+            raise Exception('This question\'s answer isn\'t convertable to a numerical string. \n' + 
+                            'Try rephrasing your question (e.g. specify units of the result).')
 
     # Evaluate locally using python.
     else:
@@ -81,9 +86,9 @@ def calculate(in_str, return_float=False):
             print(answer)
             return answer
         except:
-            print('This expression can\'t be evaluated numerically. \n' + 
-                  'Did you mean to evaluate with wolfram? \n' +
-                  'If not, check your question for typos.')
+            raise Exception('This expression can\'t be evaluated numerically. \n' + 
+                            'Did you mean to evaluate with wolfram? \n' +
+                            'If not, check your question for typos.')
 
 def test0():
     assert abs(4. - calculate('2**2')) < 0.001

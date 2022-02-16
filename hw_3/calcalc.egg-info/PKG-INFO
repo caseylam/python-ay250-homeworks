@@ -1,7 +1,7 @@
 Metadata-Version: 2.1
 Name: calcalc
-Version: 0.0.1
-Summary: WRITE SOMETHING INTELLIGENT HERE!
+Version: 0.0.3
+Summary: CalCalc package.
 Home-page: http://github.com/caseylam/calcalc
 Author: Casey Lam
 Author-email: casey_lam@berkeley.edu
@@ -17,5 +17,5 @@ Requires-Python: >=3
 Description-Content-Type: text/x-rst
 License-File: LICENSE.txt
 
-WRITE SOMETHING INTELLIGENT HERE!
+CalCalc package.
 

@@ -1,8 +1,8 @@
 import sys
 from setuptools import setup
 
-VERSION = '0.0.1'
-DESCRIPTION = 'WRITE SOMETHING INTELLIGENT HERE!'
+VERSION = '0.0.3'
+DESCRIPTION = 'CalCalc package.'
 
 CLASSIFIERS = ['Development Status :: 3 - Alpha',
                'Intended Audience :: Education',

@@ -3,6 +3,7 @@ MANIFEST.in
 README.md
 setup.py
 calcalc/CalCalc.py
+calcalc/__init__.py
 calcalc.egg-info/PKG-INFO
 calcalc.egg-info/SOURCES.txt
 calcalc.egg-info/dependency_links.txt
