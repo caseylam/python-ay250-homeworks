@@ -2,32 +2,15 @@
 import os
 import pandas as pd
 import numpy as np
-from flask import Flask, flash, request, redirect, url_for, send_from_directory
+from flask import Flask, flash, request, redirect, url_for, send_from_directory, render_template
 from werkzeug.utils import secure_filename
 from pybtex.database import parse_file 
 
 """
-EXAMPLE FROM STACKEXCHANGE:
-
-def submit():
-    if request.method == 'POST':
-        select = request.form.get('articles')
-        if select == "Gaurdian":
-            return redirect(url_for("X_route"))
-        if select == "BBC":
-            return redirect(url_for("Y_route))
-    return render_template('scraped.html', s1=summary, s2=summary2)
-
-@app.route("/X_route")
-def X_route():
-    return render_template("X.html")
-
-@app.route("/Y_route")
-def Y_route():
-    return render_template("Y.html")
+Useful examples: https://stackoverflow.com/questions/62004957/crating-an-if-statement-for-different-html-option-in-flask-python
 """
 
-UPLOAD_FOLDER = '/home/jovyan/python-ay250-homeworks/hw_7/static'
+UPLOAD_FOLDER = '/home/jovyan/python-ay250-homeworks/hw_7/bibuploads'
 ALLOWED_EXTENSIONS = {'bib'}
 
 app = Flask(__name__)
@@ -39,27 +22,12 @@ def allowed_file(filename):
 @app.route('/', methods=['GET', 'POST'])
 def start_page():
     if os.listdir(UPLOAD_FOLDER) == []:
-        return """
-        <!doctype html>
-        <html>
-        <body>
-        <p>No collections exist. Cannot perform query.</p>
-        <p><a href="{upload_file}">Upload a collection here.</a></p>
-        </body>
-        </html>
-        """.format(upload_file=url_for('upload_file'))
+        return render_template('start_empty.html', upload_file=url_for('upload_file'))
+
     else:
-        return """
-        <!doctype html>
-        <html>
-        <body>
-            <p>At least one collection exists.</p>
-            <p><a href="{upload_file}">Add another collection here.</a></p>
-            <p><a href="{query_db}">Query the collection here.</a></p>
-        </body>
-        </html>
-        """.format(upload_file=url_for('upload_file'), query_db=url_for('query_db'))
-        
+        return render_template('start_filled.html', 
+                               upload_file=url_for('upload_file'), query_db=url_for('query_db'))
+
 @app.route('/update', methods=['GET', 'POST'])
 def upload_file():
     # FIXME: figure out how to save the collection name.
@@ -80,17 +48,7 @@ def upload_file():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             #return redirect(url_for('download_file', name=filename))
             return redirect(url_for('start_page'))
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-    Collection name:
-      <input type=text name=collname>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
+    return render_template('upload_file.html')
 
 @app.route('/query', methods=['GET', 'POST'])
 def query_db():
