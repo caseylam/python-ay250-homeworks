@@ -7,4 +7,3 @@
   <input type=file name=file>
   <input type=submit value=Upload>
 </form>
-<p><a href="{{ start_page }}">Back to home.</a></p>

@@ -1,4 +1,3 @@
-# https://flask.palletsprojects.com/en/2.1.x/patterns/fileuploads/
 import os
 import pandas as pd
 import numpy as np
@@ -7,16 +6,17 @@ from werkzeug.utils import secure_filename
 from pybtex.database import parse_file 
 import sqlite3
 
-"""
-Useful examples: https://stackoverflow.com/questions/62004957/crating-an-if-statement-for-different-html-option-in-flask-python
-"""
-
 UPLOAD_FOLDER = '/home/jovyan/python-ay250-homeworks/hw_7/bibuploads'
 ALLOWED_EXTENSIONS = {'bib'}
 
 app = Flask(__name__)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 def allowed_file(filename):
+    """
+    From https://flask.palletsprojects.com/en/2.1.x/patterns/fileuploads/
+    """
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -25,6 +25,11 @@ def parse_bib_to_df(bibfile, collection_name):
     Parse a bibtex file into a pandas dataframe.
     Keeps only the tag, author, journal, volume, pages, year,
     (For easy insertion into an SQL database later.)
+    
+    If the entry doesn't exist, replace it with np.nan.
+    
+    Note, this assumes there is an author column. If there is no
+    such column, then the entry does not make it into the table.
     
     bibfile : a .bib file
     collection_name : string
@@ -86,7 +91,9 @@ def parse_bib_to_df(bibfile, collection_name):
     return df
 
 def df_to_sql(df):
-    # FIXME: SAVE THIS TO A PARTICULAR PLACE??
+    """
+    Insert the pandas dataframe into an SQL database.
+    """
     connection = sqlite3.connect("bibliography.db")
 
     cursor = connection.cursor()
@@ -119,6 +126,11 @@ def df_to_sql(df):
 
 @app.route('/', methods=['GET', 'POST'])
 def start_page():
+    """
+    Homepage. Depending on whether there is a database or not,
+    will either prompt you to upload, or will give you the 
+    option to upload or query.
+    """
     if os.listdir(UPLOAD_FOLDER) == []:
         return render_template('start_empty.html', upload_file=url_for('upload_file'))
 
@@ -128,8 +140,10 @@ def start_page():
 
 @app.route('/update', methods=['GET', 'POST'])
 def upload_file():
-    # FIXME: figure out how to save the collection name.
-    # Also need to figure out these if statements and error stuff.
+    """
+    From https://flask.palletsprojects.com/en/2.1.x/patterns/fileuploads/
+    With some minor modifications.
+    """
     if request.method == 'POST':
         # check if the post request has the file part
         if 'file' not in request.files:
@@ -152,17 +166,14 @@ def upload_file():
             df_to_sql(bibdf)
             
             return redirect(url_for('start_page'))
-    return render_template('upload_file.html')
+    return render_template('upload_file.html', start_page=url_for('start_page'))
 
-@app.route('/results')
-def display_query_results(db_info):
-    """
-    db_info : the result of the SQL query.
-    """
-    return render_template('display.html', len = len(db_info), db_info = db_info)
     
 @app.route('/query', methods=['GET', 'POST'])
 def query_db():
+    """
+    Provide the interface to query the database.
+    """
     if request.method == 'POST':
         connection = sqlite3.connect("bibliography.db")
         cursor = connection.cursor()
@@ -170,15 +181,10 @@ def query_db():
         cursor.execute(sql_cmd)
 
         db_info = cursor.fetchall()
-        print(db_info)
         
-        return render_template('display.html', len = len(db_info), db_info = db_info)
+        return render_template('display.html', len = len(db_info), db_info = db_info, start_page=url_for('start_page'))
 
-    return render_template('query.html')
-
-@app.route('/uploads/<name>')
-def download_file(name):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], name)
+    return render_template('query.html', start_page=url_for('start_page'))
 
 if __name__ == '__main__':
     app.run(port=8000, debug = True)
