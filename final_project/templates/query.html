@@ -1,0 +1,40 @@
+<!doctype html>
+<title>Query database</title>
+<p>Use SQL query syntax to query the database (foo.db) FIXME RENAME THIS.</p>
+
+<p>
+  Tables in database available to query:<br>
+  <ul>
+    {% for thing in dbs %}
+    <li>{{ thing }}</li>
+    {% endfor %}
+  </ul>
+</p>
+<form method=post enctype=multipart/form-data>
+  SQL query:
+  <input type=text name=query size=100>
+</form>
+
+<p>
+  For the "alerts" type tables, the table columns are:
+  <ul>
+    <li>alert_name (of the form M/K/OBXXXX)</li>
+    <li>tE (Einstein crossing time, days)</li>
+    <li>Ibase (I-band baseline magnitude)</li>
+    <li>alert_url (link to alert page)</li>
+    <li>class (event classification, KMTNet and MOA only)</li>
+  </ul>
+</p>
+
+<p>
+  For the "lightcurve" type tables, the table columns are:
+  <ul>
+    <li>hjd (Heliocentric Julian Date - 2450000)</li>
+    <li>mag (I-band magnitude)</li>
+    <li>mag_err (I-band magnitude error)</li>
+    <li>alert_name (of the form M/K/OBXXXX)</li>
+    <li>lightcurve (name of telescope, KMTNet only)</li>
+  </ul>
+</p>
+
+<p><a href="{{ start_page }}">Back to home.</a></p>
