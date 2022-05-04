@@ -3,48 +3,168 @@
 <p>Select the dataset(s) to be downloaded, then click the Submit button.</p>
 
 <form action="{{ url_for('handle_data') }}" method="post">
-  MOA alerts:<br>
-  <input type=checkbox id="MOA_alerts_2022" name="MOA_alerts_2022" value="2022">
-  <label for="MOA_alerts_2022">2022</label><br>
+  <p>
+    MOA alerts:<br>
+    <input type=checkbox id="moa_alerts_2022" name="moa_alerts_2022" value="2022">
+    <label for="moa_alerts_2022">2022</label><br>
 
-  <input type=checkbox id="MOA_alerts_2021" name="MOA_alerts_2021" value="2021">
-  <label for="MOA_alerts_2021">2021</label><br>
+    <input type=checkbox id="moa_alerts_2021" name="moa_alerts_2021" value="2021">
+    <label for="moa_alerts_2021">2021</label><br>
 
-  MOA lightcurves:<br>
-  <input type=checkbox id="MOA_lightcurves_2022" name="MOA_lightcurves_2022" value="2022">
-  <label for="MOA_lightcurves_2022">2022</label><br>
+    <input type=checkbox id="moa_alerts_2020" name="moa_alerts_2020" value="2020">
+    <label for="moa_alerts_2020">2020</label><br>
 
-  <input type=checkbox id="MOA_lightcurves_2021" name="MOA_lightcurves_2021" value="2021">
-  <label for="MOA_lightcurves_2021">2021</label><br>
+    <input type=checkbox id="moa_alerts_2019" name="moa_alerts_2019" value="2019">
+    <label for="moa_alerts_2019">2019</label><br>
 
-  KMTNet alerts:<br>
-  <input type=checkbox id="KMTNet_alerts_2022" name="KMTNet_alerts_2022" value="2022">
-  <label for="KMTNet_alerts_2022">2022</label><br>
+    <input type=checkbox id="moa_alerts_2018" name="moa_alerts_2018" value="2018">
+    <label for="moa_alerts_2018">2018</label><br>
 
-  <input type=checkbox id="KMTNet_alerts_2021" name="KMTNet_alerts_2021" value="2021">
-  <label for="KMTNet_alerts_2021">2021</label><br>
+    <input type=checkbox id="moa_alerts_2017" name="moa_alerts_2017" value="2017">
+    <label for="moa_alerts_2017">2017</label><br>
 
-  KMTNet lightcurves:<br>
-  <input type=checkbox id="KMTNet_lightcurves_2022" name="KMTNet_lightcurves_2022" value="2022">
-  <label for="KMTNet_lightcurves_2022">2022</label><br>
+    <input type=checkbox id="moa_alerts_2016" name="moa_alerts_2016" value="2016">
+    <label for="moa_alerts_2016">2016</label><br>
+   </p>
 
-  <input type=checkbox id="KMTNet_lightcurves_2021" name="KMTNet_lightcurves_2021" value="2021">
-  <label for="KMTNet_lightcurves_2021">2021</label><br>
+  <p>
+    MOA lightcurves:<br>
+    <input type=checkbox id="moa_lightcurves_2022" name="moa_lightcurves_2022" value="2022">
+    <label for="moa_lightcurves_2022">2022</label><br>
+    
+    <input type=checkbox id="moa_lightcurves_2021" name="moa_lightcurves_2021" value="2021">
+    <label for="moa_lightcurves_2021">2021</label><br>
 
-  OGLE alerts:<br>
-  <input type=checkbox id="OGLE_alerts_2019" name="OGLE_alerts_2019" value="2019">
-  <label for="OGLE_alerts_2019">2019</label><br>
+    <input type=checkbox id="moa_lightcurves_2020" name="moa_lightcurves_2020" value="2020">
+    <label for="moa_lightcurves_2020">2020</label><br>
 
-  <input type=checkbox id="OGLE_alerts_2018" name="OGLE_alerts_2018" value="2018">
-  <label for="OGLE_alerts_2018">2018</label><br>
+    <input type=checkbox id="moa_lightcurves_2019" name="moa_lightcurves_2019" value="2019">
+    <label for="moa_lightcurves_2019">2019</label><br>
 
-  OGLE lightcurves:<br>
-  <input type=checkbox id="OGLE_lightcurves_2019" name="OGLE_lightcurves_2019" value="2019">
-  <label for="OGLE_lightcurves_2019">2019</label><br>
+    <input type=checkbox id="moa_lightcurves_2018" name="moa_lightcurves_2018" value="2018">
+    <label for="moa_lightcurves_2018">2018</label><br>
 
-  <input type=checkbox id="OGLE_lightcurves_2018" name="OGLE_lightcurves_2018" value="2018">
-  <label for="OGLE_lightcurves_2018">2018</label><br>
+    <input type=checkbox id="moa_lightcurves_2017" name="moa_lightcurves_2017" value="2017">
+    <label for="moa_lightcurves_2017">2017</label><br>
 
+    <input type=checkbox id="moa_lightcurves_2016" name="moa_lightcurves_2016" value="2016">
+    <label for="moa_lightcurves_2016">2016</label><br>
+   </p>
+
+  <p>
+    KMTNet alerts:<br>
+    <input type=checkbox id="kmtnet_alerts_2022" name="kmtnet_alerts_2022" value="2022">
+    <label for="kmtnet_alerts_2022">2022</label><br>
+    
+    <input type=checkbox id="kmtnet_alerts_2021" name="kmtnet_alerts_2021" value="2021">
+    <label for="kmtnet_alerts_2021">2021</label><br>
+
+    <input type=checkbox id="kmtnet_alerts_2020" name="kmtnet_alerts_2020" value="2020">
+    <label for="kmtnet_alerts_2020">2020</label><br>
+
+    <input type=checkbox id="kmtnet_alerts_2019" name="kmtnet_alerts_2019" value="2019">
+    <label for="kmtnet_alerts_2019">2019</label><br>
+
+    <input type=checkbox id="kmtnet_alerts_2018" name="kmtnet_alerts_2018" value="2018">
+    <label for="kmtnet_alerts_2018">2018</label><br>
+
+    <input type=checkbox id="kmtnet_alerts_2017" name="kmtnet_alerts_2017" value="2017">
+    <label for="kmtnet_alerts_2017">2017</label><br>
+
+    <input type=checkbox id="kmtnet_alerts_2016" name="kmtnet_alerts_2016" value="2016">
+    <label for="kmtnet_alerts_2016">2016</label><br>
+  </p>
+
+  <p>
+    KMTNet lightcurves:<br>
+    <input type=checkbox id="kmtnet_lightcurves_2022" name="kmtnet_lightcurves_2022" value="2022">
+    <label for="kmtnet_lightcurves_2022">2022</label><br>
+    
+    <input type=checkbox id="kmtnet_lightcurves_2021" name="kmtnet_lightcurves_2021" value="2021">
+    <label for="kmtnet_lightcurves_2021">2021</label><br>
+
+    <input type=checkbox id="kmtnet_lightcurves_2020" name="kmtnet_lightcurves_2020" value="2020">
+    <label for="kmtnet_lightcurves_2020">2020</label><br>
+
+    <input type=checkbox id="kmtnet_lightcurves_2019" name="kmtnet_lightcurves_2019" value="2019">
+    <label for="kmtnet_lightcurves_2019">2019</label><br>
+
+    <input type=checkbox id="kmtnet_lightcurves_2018" name="kmtnet_lightcurves_2018" value="2018">
+    <label for="kmtnet_lightcurves_2018">2018</label><br>
+
+    <input type=checkbox id="kmtnet_lightcurves_2017" name="kmtnet_lightcurves_2017" value="2017">
+    <label for="kmtnet_lightcurves_2017">2017</label><br>
+
+    <input type=checkbox id="kmtnet_lightcurves_2016" name="kmtnet_lightcurves_2016" value="2016">
+    <label for="kmtnet_lightcurves_2016">2016</label><br>
+  </p>
+
+  <p>
+    OGLE alerts:<br>
+    <input type=checkbox id="ogle_alerts_2019" name="ogle_alerts_2019" value="2019">
+    <label for="ogle_alerts_2019">2019</label><br>
+    
+    <input type=checkbox id="ogle_alerts_2018" name="ogle_alerts_2018" value="2018">
+    <label for="ogle_alerts_2018">2018</label><br>
+
+    <input type=checkbox id="ogle_alerts_2017" name="ogle_alerts_2017" value="2017">
+    <label for="ogle_alerts_2017">2017</label><br>
+
+    <input type=checkbox id="ogle_alerts_2016" name="ogle_alerts_2016" value="2016">
+    <label for="ogle_alerts_2016">2016</label><br>
+
+    <input type=checkbox id="ogle_alerts_2015" name="ogle_alerts_2015" value="2015">
+    <label for="ogle_alerts_2015">2015</label><br>
+
+    <input type=checkbox id="ogle_alerts_2014" name="ogle_alerts_2014" value="2014">
+    <label for="ogle_alerts_2014">2014</label><br>
+
+    <input type=checkbox id="ogle_alerts_2013" name="ogle_alerts_2013" value="2013">
+    <label for="ogle_alerts_2013">2013</label><br>
+
+    <input type=checkbox id="ogle_alerts_2012" name="ogle_alerts_2012" value="2012">
+    <label for="ogle_alerts_2012">2012</label><br>
+
+    <input type=checkbox id="ogle_alerts_2011" name="ogle_alerts_2011" value="2011">
+    <label for="ogle_alerts_2011">2011</label><br>
+
+    <input type=checkbox id="ogle_alerts_2010" name="ogle_alerts_2010" value="2010">
+    <label for="ogle_alerts_2010">2010</label><br>
+  </p>
+
+  <p>
+    OGLE lightcurves:<br>
+    <input type=checkbox id="ogle_lightcurves_2019" name="ogle_lightcurves_2019" value="2019">
+    <label qfor="ogle_lightcurves_2019">2019</label><br>
+    
+    <input type=checkbox id="ogle_lightcurves_2018" name="ogle_lightcurves_2018" value="2018">
+    <label for="ogle_lightcurves_2018">2018</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2017" name="ogle_lightcurves_2017" value="2017">
+    <label for="ogle_lightcurves_2017">2017</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2016" name="ogle_lightcurves_2016" value="2016">
+    <label for="ogle_lightcurves_2016">2016</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2015" name="ogle_lightcurves_2015" value="2015">
+    <label for="ogle_lightcurves_2015">2015</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2014" name="ogle_lightcurves_2014" value="2014">
+    <label for="ogle_lightcurves_2014">2014</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2013" name="ogle_lightcurves_2013" value="2013">
+    <label for="ogle_lightcurves_2013">2013</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2012" name="ogle_lightcurves_2012" value="2012">
+    <label for="ogle_lightcurves_2012">2012</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2011" name="ogle_lightcurves_2011" value="2011">
+    <label for="ogle_lightcurves_2011">2011</label><br>
+
+    <input type=checkbox id="ogle_lightcurves_2010" name="ogle_lightcurves_2010" value="2010">
+    <label for="ogle_lightcurves_2010">2010</label><br>
+  </p>
+  
   <input type="submit" value="Submit">
 </form>
 <p><a href="{{ start_page }}">Back to home.</a></p>

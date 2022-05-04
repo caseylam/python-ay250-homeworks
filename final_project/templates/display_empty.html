@@ -5,14 +5,9 @@
 </head>
 <body>
   
-<ol>
-<!-- For loop logic of jinja template -->
-{%for i in range(0, len)%}
-  
-    <li>{{ db_info[i] }}</li>
-{%endfor%}
-  
-</ol>
+No results.
+
+<p><a href="{{ query_db }}">Try another query.</a></p>
 
 <p><a href="{{ start_page }}">Back to home.</a></p>
 </body>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <body>
+    <p>
+      The following tables already exist in the database
+      and were not re-downloaded, since they are from previous
+      seasons and do not require updating:<br>
+      <ul>
+        {% for thing in duplicate_list %}
+        <li>{{ thing }}</li>
+        {% endfor %}  
+      </ul>
+    </p>
+
+    <p>
+      The following tables were re-downloaded:<br>
+      <ul>
+        {% for thing in update_list %}
+        <li>{{ thing }}</li>
+        {% endfor %}  
+      </ul>
+    </p>
+
+    <p>
+      The following tables were downloaded:<br>
+      <ul>
+        {% for thing in download_list %}
+        <li>{{ thing }}</li>
+        {% endfor %}  
+      </ul>
+    </p>
+
+    <p><a href="{{ web_download_to_db }}">Download more microlensing alert datasets here.</a></p>
+    <p><a href="{{ query_db }}">Query the collection here.</a></p>
+    <p><a href="{{ start_page }}">Back to home.</a></p>
+  </body>
+</html>
