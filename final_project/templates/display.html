@@ -4,14 +4,15 @@
     <title>Query results</title>
 </head>
 <body>
-  
+
+<p>SQL query: {{ query_str }}</p>
+
 <ol>
 <!-- For loop logic of jinja template -->
 {%for i in range(0, len)%}
   
     <li>{{ db_info[i] }}</li>
 {%endfor%}
-  
 </ol>
 
 <p><a href="{{ start_page }}">Back to home.</a></p>

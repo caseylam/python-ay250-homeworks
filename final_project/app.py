@@ -69,6 +69,7 @@ def handle_data():
         if key in engine.table_names():
             if this_year == year:
                 update_list.append(key)
+                # FIXME: DELETE THE OLD TABLE FROM THE DATABASE.
             else:
                 duplicate_list.append(key)
         else:
@@ -77,12 +78,12 @@ def handle_data():
     for ii, key in enumerate(keys):
         system, data, year = key.split('_')
         if key in update_list + download_list:
-            if system == 'KMTNet':
+            if system == 'kmtnet':
                 if data == 'alerts':
                     query_alerts.get_kmtnet_alerts(year)
                 else: # lightcurves
                     query_alerts.get_kmtnet_lightcurves(year)
-            elif system == 'OGLE':
+            elif system == 'ogle':
                 if data == 'alerts':
                     query_alerts.get_ogle_alerts(year)
                 else: # lightcurves
@@ -92,6 +93,7 @@ def handle_data():
                     query_alerts.get_moa_alerts(year)
                 else: # lightcurves
                     query_alerts.get_moa_lightcurves(year)
+    # FIXME: CHECK ON CAPITALIZATIONS AND THINGS!!!!!!!!!
     print('update_list', update_list)
     print('duplicate_list', duplicate_list)
     print('download_list', download_list)
@@ -110,19 +112,26 @@ def query_db():
     Provide the interface to query the database.
     """
     if request.method == 'POST':
-        db_info = engine.execute(request.form['query']).fetchall()
+        query_str = request.form['query']
+        db_info = engine.execute(query_str).fetchall()
         
         if len(db_info) == 0:
             return render_template('display_empty.html', 
+                                   query_str=query_str,
                                    query_db=url_for('query_db'),
                                    start_page=url_for('start_page'))
         else:
-            return render_template('display.html', len = len(db_info), 
+            # db_info = [[str(x).ljust(20) for x in line] for line in db_info]
+            return render_template('display.html', 
+                                   query_str=query_str,
+                                   len = len(db_info), 
                                    db_info = db_info, 
                                    start_page=url_for('start_page'))
 
-    return render_template('query.html', start_page=url_for('start_page'), 
-                            dbs=engine.table_names())
+    return render_template('query.html', 
+                           web_download_to_db=url_for('web_download_to_db'),
+                           start_page=url_for('start_page'), 
+                           dbs=engine.table_names())
 
 if __name__ == '__main__':
     app.run(port=8000, debug = True)
