@@ -370,7 +370,7 @@ def ogle_str_to_float(list_in, idx):
     except:
         return np.nan
         
-def get_ogle_alerts(year, use_pool=True):
+def get_ogle_alerts(year):
     """
     **********************
     !!!!!!! FIXME !!!!!!!!
@@ -400,79 +400,17 @@ def get_ogle_alerts(year, use_pool=True):
     # Figure out how many alert pages there are.
     npages = len(soup.find_all('td')[0::15])
     
-    if use_pool:
-        _t0 = time.time()     
-        num_workers = mp.cpu_count()  
-        pool = mp.Pool(processes=num_workers)
-        parallel_results = pool.starmap(get_ogle_params, zip(repeat(year), range(npages)))
-        _t1 = time.time() 
-        
-        # Put it all into a dataframe and write out to the database.
-        df = pd.DataFrame(parallel_results,
-                         columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
-                                   'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
-                                   'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
-    
-    else:
-        # Values we are going to populate
-        RA = np.empty(npages, dtype='S11')
-        Dec = np.empty(npages, dtype='S11')
-        Tmax = np.empty(npages)
-        Tmax_e = np.empty(npages)
-        tau = np.empty(npages)
-        tau_e = np.empty(npages) 
-        Umin = np.empty(npages) 
-        Umin_e = np.empty(npages) 
-        Amax = np.empty(npages) 
-        Amax_e = np.empty(npages) 
-        Dmag = np.empty(npages) 
-        Dmag_e = np.empty(npages) 
-        fbl = np.empty(npages) 
-        fbl_e = np.empty(npages) 
-        Ibl = np.empty(npages) 
-        Ibl_e = np.empty(npages) 
-        I0 = np.empty(npages) 
-        I0_e = np.empty(npages) 
+    _t0 = time.time()     
+    num_workers = mp.cpu_count()  
+    pool = mp.Pool(processes=num_workers)
+    parallel_results = pool.starmap(get_ogle_params, zip(repeat(year), range(npages)))
+    _t1 = time.time() 
 
-        _t0 = time.time()
-        # Go to each page and populate values
-        # FIXME: SPEED THIS UP WITH POOL!!!!!!!
-        for nn in np.arange(npages):
-            print(nn)
-            url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
-            response = urlopen(url)
-            html = response.read()
-            response.close()
-            soup = BeautifulSoup(html,"html.parser")
-            header_list = soup.find_all('table')[1].find('td').text.split()
-            param_list = soup.find_all('table')[2].find('td').text.split()
-            RA[nn] = header_list[7]
-            Dec[nn] = header_list[10]
-            Tmax[nn] = ogle_str_to_float(param_list, 1)
-            Tmax_e[nn] = ogle_str_to_float(param_list, 3)
-            tau[nn] =  ogle_str_to_float(param_list, 7)
-            tau_e[nn] =  ogle_str_to_float(param_list, 9)
-            Umin[nn] =  ogle_str_to_float(param_list, 11)
-            Umin_e[nn] =  ogle_str_to_float(param_list, 13)
-            Amax[nn] =  ogle_str_to_float(param_list, 15)
-            Amax_e[nn] =  ogle_str_to_float(param_list, 17)
-            Dmag[nn] =  ogle_str_to_float(param_list, 19)
-            Dmag_e[nn] =  ogle_str_to_float(param_list, 21)
-            fbl[nn] =  ogle_str_to_float(param_list, 23)
-            fbl_e[nn] =  ogle_str_to_float(param_list, 25)
-            Ibl[nn] =  ogle_str_to_float(param_list, 27)
-            Ibl_e[nn] =  ogle_str_to_float(param_list, 29)
-            I0[nn] = ogle_str_to_float(param_list, 31)
-            I0_e[nn] =  ogle_str_to_float(param_list, 33)
-        _t1 = time.time()
-        
-        # Put it all into a dataframe and write out to the database.
-        df = pd.DataFrame(list(zip(RA, Dec, Tmax, Tmax_e, tau, tau_e, 
-                                   Umin, Umin_e, Amax, Amax_e, Dmag, Dmag_e, 
-                                   fbl, fbl_e, Ibl, Ibl_e, I0, I0_e)),
-                         columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
-                                   'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
-                                   'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
+    # Put it all into a dataframe and write out to the database.
+    df = pd.DataFrame(parallel_results,
+                     columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
+                               'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
+                               'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
 
     df.to_sql(con=engine, schema=None, name="ogle_alerts_" + year, if_exists="replace", index=False)
     

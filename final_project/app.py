@@ -72,7 +72,7 @@ def web_download_to_db():
                         query_alerts.get_kmtnet_lightcurves(year)
                 elif system == 'ogle':
                     if data == 'alerts':
-                        query_alerts.get_ogle_alerts(year, use_pool=True)
+                        query_alerts.get_ogle_alerts(year)
                     else: # lightcurves
                         query_alerts.get_ogle_lightcurves(year)
                 else: # MOA
