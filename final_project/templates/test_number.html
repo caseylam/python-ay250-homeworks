@@ -17,3 +17,10 @@
 {% endif %}
 
 <p><a href="{{ home }}">Back to home.</a></p>
+
+<p>
+  All lightcurves:<br>
+  {% for moa_name in moa_names %}
+  <p><a href="{{ url_for('plot_moa', moa_alert_name=moa_name) }}">{{ moa_name }}</a></p>
+  {% endfor %}
+</p>

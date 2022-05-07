@@ -129,13 +129,20 @@ def query_db():
 #     else:
 #         pass
     
-@app.route('/plot/moa_alert_name')
-def plot_moa(moa_alert_names):
+@app.route('/plot/<moa_alert_name>')
+def plot_moa(moa_alert_name):
+    # Check if variable exists first.
+    # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
+    
+    n_lc = len(moa_names)
+    ii = moa_names.index(moa_alert_name)
     return render_template('test_number.html', 
-                           home=url_for('home'),
-                            next_page=url_for('print_num', ii=ii+1), 
-                            prev_page=url_for('print_num', ii=ii-1), 
-                            qmax=n_lc + 1)
+                           home=url_for('start_page'),
+                           ii=ii,
+                            next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+                            prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+                            qmax=n_lc + 1,
+                          moa_names=moa_names)
     
 @app.route('/browse_moa', methods=['GET', 'POST'])
 def browse_moa():
@@ -147,6 +154,10 @@ def browse_moa():
             return 'Nothing' # Make this a page.
         else:
             n_lc = len(db_info) + 1
+        
+            # Make the names of the moa lightcurves here a global function...
+            # Is there a better way to do this??????
+            global moa_names
             moa_names = [str(mname).strip(',()\'') for mname in db_info]
             return render_template('moa_lightcurves_list.html', 
                                     alert_names=moa_names)
