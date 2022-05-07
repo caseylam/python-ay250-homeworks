@@ -104,7 +104,7 @@ def get_moa_lightcurves(year):
 
         # Write out the HJD, mag, mag_err, and alert_names data into the table. 
         cols = ['hjd', 'mag', 'mag_err', 'alert_name']
-        df[cols].to_sql(con=engine, schema=None, name="moa_" + year, if_exists="append", index=False)
+        df[cols].to_sql(con=engine, schema=None, name="moa_lightcurves_" + year, if_exists="append", index=False)
     t1 = time.time() 
     
     print('Took {0:.2f} seconds'.format(t1-t0))
@@ -139,8 +139,6 @@ def get_ogle_lightcurves(year):
     for nn in np.arange(start=1, stop=nobj+1, step=1):
         # Grab the photometry for each alert.
         ftp.cwd("blg-" + str(nn).zfill(4))
-
-        print("blg-" + str(nn).zfill(4))
         
         flo = BytesIO()
         ftp.retrbinary('RETR phot.dat', flo.write)
@@ -154,7 +152,7 @@ def get_ogle_lightcurves(year):
 
         # Write out the HJD, mag, mag_err, and alert_names data into the table. 
         cols = ['hjd', 'mag', 'mag_err', 'alert_name']
-        df[cols].to_sql(con=engine, schema=None, name="ogle_" + year, if_exists="append", index=False)
+        df[cols].to_sql(con=engine, schema=None, name="ogle_lightcurves_" + year, if_exists="append", index=False)
 
         ftp.cwd("../")
     t1 = time.time() 
@@ -220,7 +218,8 @@ def get_kmtnet_lightcurves(year):
 
                 # Write out the HJD, mag, mag_err, lightcurve, and alert_name data into the table.
                 cols = ['hjd', 'mag', 'mag_err', 'lightcurve', 'alert_name']
-                df[cols].to_sql(con=engine, schema=None, name="kmtnet_" + year, if_exists="append", index=False)
+                df[cols].to_sql(con=engine, schema=None, name="kmtnet_lightcurves_" + year, 
+                                if_exists="append", index=False)
     t1 = time.time()             
     
     print('Took {0:.2f} seconds'.format(t1-t0))
@@ -407,3 +406,192 @@ def get_kmtnet_alerts(year):
                      columns =['alert_name', 'class', 'tE', 'Ibase', 'alert_url'])
 
     df.to_sql(con=engine, schema=None, name="kmtnet_alerts_" + year, if_exists="replace", index=False)
+    
+def get_ogle_alerts_errors(year):
+    """
+    **********************
+    !!!!!!! FIXME !!!!!!!!
+    **********************
+    Function that grabs OGLE alerts and writes the fit
+    tE and Ibase parameters to a table in the database.
+    
+    Parameters
+    ----------
+    year : int
+        Year of the OGLE alerts you want.
+        Valid choices are 2001 - 2019, inclusive.
+        
+    Outputs
+    -------
+    sqlite table called ogle_alerts_<YYYY> in microlensing.db
+    Columns are alert_name, tE, Ibase, alert_url.
+    """
+    def ogle_str_to_float(list_in, idx):
+        try:
+            return float(ne.evaluate(list_in[idx]))
+        except:
+            return np.nan
+    
+    # Go to the OGLE alerts site and scrape the page.
+    year = str(year)
+    url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/ews.html"
+    response = urlopen(url)
+    html = response.read()
+    response.close()
+    soup = BeautifulSoup(html,"html.parser")
+
+    # Figure out how many alert pages there are.
+    npages = len(soup.find_all('td')[0::15])
+    
+    # Values we are going to populate
+    t0 = np.zeros(npages)
+    t0e = np.zeros(npages)
+    tE = np.zeros(npages)
+    tEe = np.zeros(npages) 
+    u0 = np.zeros(npages) 
+    u0e = np.zeros(npages) 
+    A = np.zeros(npages) 
+    Ae = np.zeros(npages) 
+    Dmag = np.zeros(npages) 
+    Dmage = np.zeros(npages) 
+    fbl = np.zeros(npages) 
+    fble = np.zeros(npages) 
+    Ibl = np.zeros(npages) 
+    Ible = np.zeros(npages) 
+    I0 = np.zeros(npages) 
+    I0e = np.zeros(npages) 
+
+    _t0 = time.time()
+    # Go to each page and populate values
+    for nn in np.arange(npages):
+        print(nn)
+        url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
+        response = urlopen(url)
+        html = response.read()
+        response.close()
+        soup = BeautifulSoup(html,"html.parser")
+        param_tab = soup.find_all('table')[2].find('td').text
+        param_list = param_tab.split()
+        t0[nn] = ogle_str_to_float(param_list, 1)
+        t0e[nn] = ogle_str_to_float(param_list, 3)
+        tE[nn] =  ogle_str_to_float(param_list, 7)
+        tEe[nn] =  ogle_str_to_float(param_list, 9)
+        u0[nn] =  ogle_str_to_float(param_list, 11)
+        u0e[nn] =  ogle_str_to_float(param_list, 13)
+        A[nn] =  ogle_str_to_float(param_list, 15)
+        Ae[nn] =  ogle_str_to_float(param_list, 17)
+        Dmag[nn] =  ogle_str_to_float(param_list, 19)
+        Dmage[nn] =  ogle_str_to_float(param_list, 21)
+        fbl[nn] =  ogle_str_to_float(param_list, 23)
+        fble[nn] =  ogle_str_to_float(param_list, 25)
+        Ibl[nn] =  ogle_str_to_float(param_list, 27)
+        Ible[nn] =  ogle_str_to_float(param_list, 29)
+        I0[nn] = ogle_str_to_float(param_list, 31)
+        I0e[nn] =  ogle_str_to_float(param_list, 33)
+            
+    # Put it all into a dataframe and write out to the database.
+    df = pd.DataFrame(list(zip(t0, t0e, tE, tEe, u0, u0e, A, Ae, 
+                               Dmag, Dmage, fbl, fble, Ibl, Ible, I0, I0e)),
+                     columns =['t0', 't0e', 'tE', 'tEe', 'u0', 'u0e', 'A', 'Ae', 
+                               'Dmag', 'Dmage', 'fbl', 'fble', 'Ibl', 'Ible', 'I0', 'I0e'])
+
+    df.to_sql(con=engine, schema=None, name="ogle_alerts_errors_" + year, if_exists="replace", index=False)
+    
+    _t1 = time.time()
+    print('Took {0:.2f} seconds'.format(_t1-_t0))
+    
+def get_moa_alerts_errors(year):
+    """
+    **********************
+    !!!!!!! FIXME !!!!!!!!
+    **********************
+    Function that grabs OGLE alerts and writes the fit
+    tE and Ibase parameters to a table in the database.
+    
+    Parameters
+    ----------
+    year : int
+        Year of the OGLE alerts you want.
+        Valid choices are 2001 - 2019, inclusive.
+        
+    Outputs
+    -------
+    sqlite table called ogle_alerts_<YYYY> in microlensing.db
+    Columns are alert_name, tE, Ibase, alert_url.
+    """    
+    def moa_str_to_float(list_in):
+        try:
+            return float(ne.evaluate(list_in))
+        except:
+            return np.nan
+    
+    # Go to the MOA alerts site and scrape the page.
+    year = str(year)
+    url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/alert.php"
+    response = urlopen(url)
+    html = response.read()
+    response.close()
+    soup = BeautifulSoup(html,"html.parser")
+
+    # Get a list of all the bulge microlensing alert directories.
+    links = soup.find_all('a', href=True)
+    alert_dirs = []
+    for ii, link in enumerate(links):
+        if 'BLG' in link.text:
+            alert_dirs.append(links[ii]['href'])
+        
+    # Values we are going to populate
+    npages = len(alert_dirs)
+    t0_arr = np.zeros(npages)
+    t0e_arr = np.zeros(npages)
+    tE_arr = np.zeros(npages)
+    tEe_arr = np.zeros(npages) 
+    u0_arr = np.zeros(npages) 
+    u0e_arr = np.zeros(npages) 
+    Ibase_arr = np.zeros(npages) 
+    Ibasee_arr = np.zeros(npages) 
+
+    _t0 = time.time()
+    # Go to the page for each bulge microlensing alert.
+    for nn, alert_dir in enumerate(alert_dirs):
+        # Scrape the page.
+        url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
+        response = urlopen(url)
+        html = response.read()
+        response.close()
+        soup = BeautifulSoup(html,"html.parser")
+        
+        t0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[1]
+        t0 = t0_str.split()[1]
+        t0e = t0_str.split('<td>')[2].split()[0]
+
+        tE_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[2]
+        tE = tE_str.split()[0]
+        tEe = tE_str.split('<td>')[2].split()[0]
+
+        u0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[3]
+        u0 = u0_str.split()[0]
+        u0e = u0_str.split('<td>')[2].split()[0].split('<')[0]
+
+        Ibase_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[4]
+        Ibase = Ibase_str.split()[0]
+        Ibasee = Ibase_str.split('<td>')[2].split()[0].split('<')[0]
+        
+        t0_arr[nn] = moa_str_to_float(t0)
+        t0e_arr[nn] = moa_str_to_float(t0e)
+        tE_arr[nn] =  moa_str_to_float(tE)
+        tEe_arr[nn] =  moa_str_to_float(tEe)
+        u0_arr[nn] =  moa_str_to_float(u0)
+        u0e_arr[nn] =  moa_str_to_float(u0e)
+        Ibase_arr[nn] =  moa_str_to_float(Ibase)
+        Ibasee_arr[nn] =  moa_str_to_float(Ibasee)
+            
+    # Put it all into a dataframe and write out to the database.
+    df = pd.DataFrame(list(zip(t0_arr, t0e_arr, tE_arr, tEe_arr, 
+                               u0_arr, u0e_arr, Ibase_arr, Ibasee_arr)),
+                     columns =['t0', 't0e', 'tE', 'tEe', 'u0', 'u0e', 'Ibase', 'Ibasee'])
+
+    df.to_sql(con=engine, schema=None, name="moa_alerts_errors_" + year, if_exists="replace", index=False)
+    
+    _t1 = time.time()
+    print('Took {0:.2f} seconds'.format(_t1-_t0))

@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+<html>
+  <body>
+    <img src="/plot{{ alert_id }}.png" alt="my plot">
+    <p>No tables yet exist in the microlensing.db database.</p>
+  </body>
+</html>
+
+{% if ii == 0 %}
+<p><a href="{{ next_page }}">next</a></p>
+{% elif ii == qmax %}
+<p><a href="{{ prev_page }}">prev</a></p>
+{% else %}
+<p><a href="{{ next_page }}">next</a></p>
+<p><a href="{{ prev_page }}">prev</a></p>
+{% endif %}
+-->
+
+<p>
+  All lightcurves:<br>
+  {% for num in num_list %}
+  <p><a href="{{ url_for('print_num', ii=num) }}">Lightcurve {{ num }}</a></p>
+  {% endfor %}
+</p>

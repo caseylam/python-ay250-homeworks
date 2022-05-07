@@ -16,7 +16,6 @@ app = Flask(__name__)
 # Option to save querys? 
 # How to do version control? (As alert values update.) Have multiple databases? 
 # Save in the database name the day it was created? 
-# Have some function that knows the current year. If it was an old year, this is unnecessary.
 
 engine = create_engine('sqlite:///microlensing.db')
 conn = engine.connect()
@@ -33,9 +32,10 @@ def start_page():
 
     else:
         return render_template('start_filled.html', 
+                               dbs=engine.table_names(),
                                web_download_to_db=url_for('web_download_to_db'), 
                                query_db=url_for('query_db'),
-                               dbs=engine.table_names())
+                               browse_moa=url_for('browse_moa'))
 
 @app.route('/update', methods=['GET', 'POST'])
 def web_download_to_db():
@@ -45,26 +45,23 @@ def web_download_to_db():
     """
     
     return render_template('download_data.html', start_page=url_for('start_page'))
-    # return render_template('example.html')
 
 @app.route('/handle_data', methods=['GET', 'POST'])
 def handle_data():
     """
     FIXME: add an option to choose whether to keep or delete database.
-    Actually, have radio buttons for this: Choose whether want lightcurves, data, system, and years.
-
     """
     duplicate_list = []
     update_list = []
     download_list = []
 
     this_year = str(datetime.date.today().year)
+    this_year = str(2019)
     
     keys = list(request.form.to_dict().keys())
     for ii, key in enumerate(keys):
         system, data, year = key.split('_')
         print(key)
-        print(engine.table_names())
         
         if key in engine.table_names():
             if this_year == year:
@@ -85,18 +82,20 @@ def handle_data():
                     query_alerts.get_kmtnet_lightcurves(year)
             elif system == 'ogle':
                 if data == 'alerts':
-                    query_alerts.get_ogle_alerts(year)
+                    # query_alerts.get_ogle_alerts(year)
+                    query_alerts.get_ogle_alerts_errors(year)
                 else: # lightcurves
                     query_alerts.get_ogle_lightcurves(year)
             else: # MOA
                 if data == 'alerts':
-                    query_alerts.get_moa_alerts(year)
+                    # query_alerts.get_moa_alerts(year)
+                    query_alerts.get_moa_alerts_errors(year)
                 else: # lightcurves
                     query_alerts.get_moa_lightcurves(year)
     # FIXME: CHECK ON CAPITALIZATIONS AND THINGS!!!!!!!!!
-    print('update_list', update_list)
-    print('duplicate_list', duplicate_list)
-    print('download_list', download_list)
+#     print('update_list', update_list)
+#     print('duplicate_list', duplicate_list)
+#     print('download_list', download_list)
     # How to show processing? Googling "stream" and "dynamic" but I don't think that's what I want.
     return render_template('download_results.html', 
                             duplicate_list=duplicate_list,
@@ -121,7 +120,6 @@ def query_db():
                                    query_db=url_for('query_db'),
                                    start_page=url_for('start_page'))
         else:
-            # db_info = [[str(x).ljust(20) for x in line] for line in db_info]
             return render_template('display.html', 
                                    query_str=query_str,
                                    len = len(db_info), 
@@ -132,6 +130,51 @@ def query_db():
                            web_download_to_db=url_for('web_download_to_db'),
                            start_page=url_for('start_page'), 
                            dbs=engine.table_names())
+
+# @app.route('/browse_moa', methods=['GET', 'POST'])
+# def browse_moa():
+#     dbs=engine.table_names()
+#     moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
+#     if moa_lcs == []:
+#         return render_template('moa_lightcurves_empty.html',
+#                                 web_download_to_db=url_for('web_download_to_db'),
+#                                 start_page=url_for('start_page'))
+#     else:
+#         pass
+    
+@app.route('/plot/moa_alert_name')
+def plot_moa(moa_alert_names):
+    return render_template('test_number.html', 
+                           home=url_for('home'),
+                        next_page=url_for('print_num', ii=ii+1), 
+                            prev_page=url_for('print_num', ii=ii-1), 
+                            qmax=n_lc + 1)
+    
+@app.route('/browse_moa', methods=['GET', 'POST'])
+def browse_moa():
+    if request.method == 'POST':
+        query_str = request.form['query']
+        db_info = engine.execute('SELECT DISTINCT alert_name ' + query_str).fetchall()
+        
+        if len(db_info) == 0:
+            return 'Nothing' # Make this a page.
+        else:
+            n_lc = len(db_info) + 1
+            moa_names = [str(mname).strip(',()\'') for mname in db_info]
+            return render_template('moa_lightcurves_list.html', 
+                                    alert_names=moa_names)
+        
+    dbs=engine.table_names()
+    moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
+    if moa_lcs == []:
+        return render_template('moa_lightcurves_list.html',
+                                plot_moa=url_for('web_download_to_db'),
+                                start_page=url_for('start_page'))
+    else:
+        return render_template('moa_lightcurves_exist.html',
+                                moa_lcs=moa_lcs,
+                                web_download_to_db=url_for('web_download_to_db'),
+                                start_page=url_for('start_page'))
 
 if __name__ == '__main__':
     app.run(port=8000, debug = True)
