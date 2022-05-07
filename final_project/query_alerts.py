@@ -229,21 +229,23 @@ def get_kmtnet_lightcurves(year):
 
 def get_moa_params(alert_dir, year, nn):  
     """
-    Get all the different OGLE alert parameters (along with their uncertainties)
+    Get all the different MOA alert parameters (along with their uncertainties)
     from the individual web pages. The uncertainties are not listed on the 
-    front summary page or lenses.par file in the data download unfortunately.
+    front summary page unfortunately.
     
     The "_e" values are the uncertainties.
     """
     # Add a column for the alert name (of the form MBYYNNN, YY=year, NNN=alert number)
     alert_name = 'MB' + year[2:] + str(nn + 1).zfill(3)  # need to make sure this always works.
     
+    # Go to the alert page and scrape the data.
     url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
     response = urlopen(url)
     html = response.read()
     response.close()
     soup = BeautifulSoup(html,"html.parser")
 
+    # Parse the scraped data.
     meta = soup.find('div', id="metadata").text
     RA = meta.split('RA:')[1].split('Dec:')[0]
     Dec = meta.split('RA:')[1].split('Dec:')[1].split('Current')[0]
@@ -271,11 +273,9 @@ def get_moa_params(alert_dir, year, nn):
     
 def get_moa_alerts(year):
     """
-    **********************
-    !!!!!!! FIXME !!!!!!!!
-    **********************
-    Function that grabs OGLE alerts and writes the fit
-    tE and Ibase parameters to a table in the database.
+    Function that grabs all the different MOA alert parameters 
+    (along with their uncertainties) for any given alert year, 
+    and write them into a database.
     
     Parameters
     ----------
@@ -285,8 +285,7 @@ def get_moa_alerts(year):
         
     Outputs
     -------
-    sqlite table called ogle_alerts_<YYYY> in microlensing.db
-    Columns are alert_name, tE, Ibase, alert_url.
+    sqlite table called moa_alerts_<YYYY> in microlensing.db
     """    
     # Go to the MOA alerts site and scrape the page.
     year = str(year)
@@ -303,10 +302,12 @@ def get_moa_alerts(year):
         if 'BLG' in link.text:
             alert_dirs.append(links[ii]['href'])
         
-    # Values we are going to populate
+    # Figure out how many alerts there are in total
     npages = len(alert_dirs)
 
-    # Go to the page for each bulge microlensing alert.
+    # Go to the page for each bulge microlensing alert and scrape the parameters.
+    # This process is parallelized using Pool (it's really slow to have to loop
+    # over all pages, and this is an embarassingly parallel process.)
     _t0 = time.time()     
     num_workers = mp.cpu_count()  
     pool = mp.Pool(processes=num_workers)
@@ -337,9 +338,9 @@ def get_ogle_params(year, nn):
     """
     
     # Add a column for the alert name (of the form OBYYNNNN, YY=year, NNN=alert number)
-    # and the alert url
     alert_name = 'OB' + year[2:] + str(nn + 1).zfill(4) 
     
+    # Go to the alert page and scrape the data.
     url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + \
             "/blg-" + str(nn+1).zfill(4) + ".html"
     response = urlopen(url)
@@ -349,6 +350,7 @@ def get_ogle_params(year, nn):
     header_list = soup.find_all('table')[1].find('td').text.split()
     param_list = soup.find_all('table')[2].find('td').text.split()
 
+    # Parse the scraped data.
     RA = header_list[7]
     Dec = header_list[10]
     Tmax = ogle_str_to_float(param_list, 1)
@@ -391,11 +393,9 @@ def moa_str_to_float(str_in):
         
 def get_ogle_alerts(year):
     """
-    **********************
-    !!!!!!! FIXME !!!!!!!!
-    **********************
-    Function that grabs OGLE alerts and writes the fit
-    tE and Ibase parameters to a table in the database.
+    Function that grabs all the different OGLE alert parameters 
+    (along with their uncertainties) for any given alert year, 
+    and write them into a database.
     
     Parameters
     ----------
@@ -406,7 +406,6 @@ def get_ogle_alerts(year):
     Outputs
     -------
     sqlite table called ogle_alerts_<YYYY> in microlensing.db
-    Columns are alert_name, tE, Ibase, alert_url.
     """
     # Go to the OGLE alerts site and scrape the page.
     year = str(year)
