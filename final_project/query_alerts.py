@@ -11,6 +11,8 @@ from urllib.request import urlopen
 import numexpr as ne
 import requests
 import time
+import multiprocessing as mp
+from itertools import repeat
 
 # Setting up database stuff with SQLAlchemy.
 engine = create_engine('sqlite:///microlensing.db')
@@ -223,24 +225,32 @@ def get_kmtnet_lightcurves(year):
     t1 = time.time()             
     
     print('Took {0:.2f} seconds'.format(t1-t0))
-    
+
 def get_moa_alerts(year):
     """
-    Function that grabs MOA alerts and writes the fit
-    tE and Ibase parameters, as well as each alert's 
-    classification, to a table in the database.
+    **********************
+    !!!!!!! FIXME !!!!!!!!
+    **********************
+    Function that grabs OGLE alerts and writes the fit
+    tE and Ibase parameters to a table in the database.
     
     Parameters
     ----------
     year : int
-        Year of the MOA alerts you want.
-        Valid choices are 2016 - 2022, inclusive.
+        Year of the OGLE alerts you want.
+        Valid choices are 2001 - 2019, inclusive.
         
     Outputs
     -------
-    sqlite table called moa_alerts_<YYYY> in microlensing.db
-    Columns are alert_name, class, tE, Ibase, alert_url.
-    """
+    sqlite table called ogle_alerts_<YYYY> in microlensing.db
+    Columns are alert_name, tE, Ibase, alert_url.
+    """    
+    def moa_str_to_float(list_in):
+        try:
+            return float(ne.evaluate(list_in))
+        except:
+            return np.nan
+    
     # Go to the MOA alerts site and scrape the page.
     year = str(year)
     url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/alert.php"
@@ -248,38 +258,123 @@ def get_moa_alerts(year):
     html = response.read()
     response.close()
     soup = BeautifulSoup(html,"html.parser")
-    
-    # Grab columns for tE and Ibase.
-    tE = soup.find_all('td')[4::8]
-    Ibase = soup.find_all('td')[6::8]
 
-    # Convert them from strings to floats.
-    tE_list = [float(ne.evaluate(item.get_text())) for item in tE]
-    Ibase_list = [float(ne.evaluate(item.get_text())) for item in Ibase]
+    # Get a list of all the bulge microlensing alert directories.
+    links = soup.find_all('a', href=True)
+    alert_dirs = []
+    for ii, link in enumerate(links):
+        if 'BLG' in link.text:
+            alert_dirs.append(links[ii]['href'])
+        
+    # Values we are going to populate
+    npages = len(alert_dirs)
+    RA_arr = np.zeros(npages)
+    Dec_arr = np.zeros(npages)
+    tmax_arr = np.zeros(npages)
+    tmax_e_arr = np.zeros(npages)
+    tE_arr = np.zeros(npages)
+    tE_e_arr = np.zeros(npages) 
+    u0_arr = np.zeros(npages) 
+    u0_e_arr = np.zeros(npages) 
+    Ibase_arr = np.zeros(npages) 
+    Ibase_e_arr = np.zeros(npages) 
 
-    # Now, grab the classification column.
-    cat = soup.find_all('td')[7::8]
-    cat_list = [item.get_text() for item in cat]
+    _t0 = time.time()
+    # Go to the page for each bulge microlensing alert.
+    for nn, alert_dir in enumerate(alert_dirs):
+        # Scrape the page.
+        url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
+        response = urlopen(url)
+        html = response.read()
+        response.close()
+        soup = BeautifulSoup(html,"html.parser")
+        
+        meta = soup.find('div', id="metadata").text
+        ra = meta.split('RA:')[1].split('Dec:')[0]
+        dec = meta.split('RA:')[1].split('Dec:')[1].split('Current')[0]
+        
+        tmax_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[1]
+        tmax = tmax_str.split()[1]
+        tmax_e = tmax_str.split('<td>')[2].split()[0]
 
-    # Grab the link to the alert page.
-    alert_url = soup.find_all('td')[0::8]
-    moa_alert_url = 'http://www.massey.ac.nz/~iabond/moa/alert' + year + '/'
-    alert_url_list = [moa_alert_url + item.find_all('a', href=True)[0]['href'] for item in alert_url]
+        tE_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[2]
+        tE = tE_str.split()[0]
+        tE_e = tE_str.split('<td>')[2].split()[0]
 
-    # Get the alert name (of the form MBYYNNN, YY=year, NNN=alert number)    
-    nn = len(tE_list)
-    alert_name = []
-    for ii in np.arange(nn):
-        alert_name.append('MB' + year[2:] + str(ii+1).zfill(3))
+        u0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[3]
+        u0 = u0_str.split()[0]
+        u0_e = u0_str.split('<td>')[2].split()[0].split('<')[0]
 
+        Ibase_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[4]
+        Ibase = Ibase_str.split()[0]
+        Ibase_e = Ibase_str.split('<td>')[2].split()[0].split('<')[0]
+        
+        RA_arr[nn] = ra
+        Dec_arr[nn] = dec
+        tmax_arr[nn] = moa_str_to_float(t0)
+        tmax_e_arr[nn] = moa_str_to_float(t0e)
+        tE_arr[nn] =  moa_str_to_float(tE)
+        tE_e_arr[nn] =  moa_str_to_float(tEe)
+        u0_arr[nn] =  moa_str_to_float(u0)
+        u0_e_arr[nn] =  moa_str_to_float(u0e)
+        Ibase_arr[nn] =  moa_str_to_float(Ibase)
+        Ibase_e_arr[nn] =  moa_str_to_float(Ibasee)
+            
     # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(alert_name, cat_list, tE_list, Ibase_list, alert_url_list)),
-                     columns =['alert_name', 'class', 'tE', 'Ibase', 'alert_url'])
+    df = pd.DataFrame(list(zip(RA_arr, Dec_arr, tmax_arr, tmax_e_arr, 
+                               tE_arr, tE_e_arr, u0_arr, u0_e_arr, 
+                               Ibase_arr, Ibase_e_arr)),
+                     columns =['RA_arr', 'Dec_arr', 'tmax_arr', 'tmax_e_arr', 
+                               'tE_arr', 'tE_e_arr', 'u0_arr', 'u0_e_arr', 
+                               'Ibase_arr', 'Ibase_e_arr'])
 
     df.to_sql(con=engine, schema=None, name="moa_alerts_" + year, if_exists="replace", index=False)
     
-def get_ogle_alerts(year):
+    _t1 = time.time()
+    print('Took {0:.2f} seconds'.format(_t1-_t0))
+
+def get_ogle_params(year, nn):    
+    url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
+    response = urlopen(url)
+    html = response.read()
+    response.close()
+    soup = BeautifulSoup(html,"html.parser")
+    header_list = soup.find_all('table')[1].find('td').text.split()
+    param_list = soup.find_all('table')[2].find('td').text.split()
+
+    RA = header_list[7]
+    Dec = header_list[10]
+    Tmax = ogle_str_to_float(param_list, 1)
+    Tmax_e = ogle_str_to_float(param_list, 3)
+    tau =  ogle_str_to_float(param_list, 7)
+    tau_e =  ogle_str_to_float(param_list, 9)
+    Umin =  ogle_str_to_float(param_list, 11)
+    Umin_e =  ogle_str_to_float(param_list, 13)
+    Amax =  ogle_str_to_float(param_list, 15)
+    Amax_e =  ogle_str_to_float(param_list, 17)
+    Dmag =  ogle_str_to_float(param_list, 19)
+    Dmag_e =  ogle_str_to_float(param_list, 21)
+    fbl =  ogle_str_to_float(param_list, 23)
+    fbl_e =  ogle_str_to_float(param_list, 25)
+    Ibl =  ogle_str_to_float(param_list, 27)
+    Ibl_e =  ogle_str_to_float(param_list, 29)
+    I0 = ogle_str_to_float(param_list, 31)
+    I0_e =  ogle_str_to_float(param_list, 33)
+
+    return RA, Dec, Tmax, Tmax_e, tau, tau_e, Umin, Umin_e, \
+            Amax, Amax_e, Dmag, Dmag_e, fbl, fbl_e, Ibl, Ibl_e, I0, I0_e
+    
+def ogle_str_to_float(list_in, idx):
+    try:
+        return float(ne.evaluate(list_in[idx]))
+    except:
+        return np.nan
+        
+def get_ogle_alerts(year, use_pool=True):
     """
+    **********************
+    !!!!!!! FIXME !!!!!!!!
+    **********************
     Function that grabs OGLE alerts and writes the fit
     tE and Ibase parameters to a table in the database.
     
@@ -294,12 +389,6 @@ def get_ogle_alerts(year):
     sqlite table called ogle_alerts_<YYYY> in microlensing.db
     Columns are alert_name, tE, Ibase, alert_url.
     """
-    def ogle_str_to_float(item):
-        try:
-            return float(ne.evaluate(item.contents[0].replace(u'\n', '')))
-        except:
-            return
-
     # Go to the OGLE alerts site and scrape the page.
     year = str(year)
     url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/ews.html"
@@ -308,29 +397,86 @@ def get_ogle_alerts(year):
     response.close()
     soup = BeautifulSoup(html,"html.parser")
 
-    # Grab columns for tE and Ibase.
-    tE = soup.find_all('td')[8::15] 
-    Ibase = soup.find_all('td')[13::15]
+    # Figure out how many alert pages there are.
+    npages = len(soup.find_all('td')[0::15])
+    
+    if use_pool:
+        _t0 = time.time()     
+        num_workers = mp.cpu_count()  
+        pool = mp.Pool(processes=num_workers)
+        parallel_results = pool.starmap(get_ogle_params, zip(repeat(year), range(npages)))
+        _t1 = time.time() 
+        
+        # Put it all into a dataframe and write out to the database.
+        df = pd.DataFrame(parallel_results,
+                         columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
+                                   'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
+                                   'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
+    
+    else:
+        # Values we are going to populate
+        RA = np.empty(npages, dtype='S11')
+        Dec = np.empty(npages, dtype='S11')
+        Tmax = np.empty(npages)
+        Tmax_e = np.empty(npages)
+        tau = np.empty(npages)
+        tau_e = np.empty(npages) 
+        Umin = np.empty(npages) 
+        Umin_e = np.empty(npages) 
+        Amax = np.empty(npages) 
+        Amax_e = np.empty(npages) 
+        Dmag = np.empty(npages) 
+        Dmag_e = np.empty(npages) 
+        fbl = np.empty(npages) 
+        fbl_e = np.empty(npages) 
+        Ibl = np.empty(npages) 
+        Ibl_e = np.empty(npages) 
+        I0 = np.empty(npages) 
+        I0_e = np.empty(npages) 
 
-    # Convert them from strings to floats.
-    tE_list = [ogle_str_to_float(item) for item in tE]
-    Ibase_list = [ogle_str_to_float(item) for item in Ibase]
-
-    # Get the alert names and page links.
-    nn = len(tE_list)
-    alert_name = []
-    alert_url_list = []
-    ogle_alert_url = 'https://ogle.astrouw.edu.pl/ogle4/ews/'
-
-    for ii in np.arange(nn):
-        alert_name.append('OB' + year[2:] + str(ii+1).zfill(4))
-        alert_url_list.append(ogle_alert_url + str(ii+1).zfill(4) + '.html')
-
-    # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(alert_name, tE_list, Ibase_list, alert_url_list)),
-                     columns =['alert_name', 'tE', 'Ibase', 'alert_url'])
+        _t0 = time.time()
+        # Go to each page and populate values
+        # FIXME: SPEED THIS UP WITH POOL!!!!!!!
+        for nn in np.arange(npages):
+            print(nn)
+            url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
+            response = urlopen(url)
+            html = response.read()
+            response.close()
+            soup = BeautifulSoup(html,"html.parser")
+            header_list = soup.find_all('table')[1].find('td').text.split()
+            param_list = soup.find_all('table')[2].find('td').text.split()
+            RA[nn] = header_list[7]
+            Dec[nn] = header_list[10]
+            Tmax[nn] = ogle_str_to_float(param_list, 1)
+            Tmax_e[nn] = ogle_str_to_float(param_list, 3)
+            tau[nn] =  ogle_str_to_float(param_list, 7)
+            tau_e[nn] =  ogle_str_to_float(param_list, 9)
+            Umin[nn] =  ogle_str_to_float(param_list, 11)
+            Umin_e[nn] =  ogle_str_to_float(param_list, 13)
+            Amax[nn] =  ogle_str_to_float(param_list, 15)
+            Amax_e[nn] =  ogle_str_to_float(param_list, 17)
+            Dmag[nn] =  ogle_str_to_float(param_list, 19)
+            Dmag_e[nn] =  ogle_str_to_float(param_list, 21)
+            fbl[nn] =  ogle_str_to_float(param_list, 23)
+            fbl_e[nn] =  ogle_str_to_float(param_list, 25)
+            Ibl[nn] =  ogle_str_to_float(param_list, 27)
+            Ibl_e[nn] =  ogle_str_to_float(param_list, 29)
+            I0[nn] = ogle_str_to_float(param_list, 31)
+            I0_e[nn] =  ogle_str_to_float(param_list, 33)
+        _t1 = time.time()
+        
+        # Put it all into a dataframe and write out to the database.
+        df = pd.DataFrame(list(zip(RA, Dec, Tmax, Tmax_e, tau, tau_e, 
+                                   Umin, Umin_e, Amax, Amax_e, Dmag, Dmag_e, 
+                                   fbl, fbl_e, Ibl, Ibl_e, I0, I0_e)),
+                         columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
+                                   'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
+                                   'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
 
     df.to_sql(con=engine, schema=None, name="ogle_alerts_" + year, if_exists="replace", index=False)
+    
+    print('Took {0:.2f} seconds'.format(_t1-_t0))
     
 def get_kmtnet_alerts(year):
     """
@@ -406,192 +552,3 @@ def get_kmtnet_alerts(year):
                      columns =['alert_name', 'class', 'tE', 'Ibase', 'alert_url'])
 
     df.to_sql(con=engine, schema=None, name="kmtnet_alerts_" + year, if_exists="replace", index=False)
-    
-def get_ogle_alerts_errors(year):
-    """
-    **********************
-    !!!!!!! FIXME !!!!!!!!
-    **********************
-    Function that grabs OGLE alerts and writes the fit
-    tE and Ibase parameters to a table in the database.
-    
-    Parameters
-    ----------
-    year : int
-        Year of the OGLE alerts you want.
-        Valid choices are 2001 - 2019, inclusive.
-        
-    Outputs
-    -------
-    sqlite table called ogle_alerts_<YYYY> in microlensing.db
-    Columns are alert_name, tE, Ibase, alert_url.
-    """
-    def ogle_str_to_float(list_in, idx):
-        try:
-            return float(ne.evaluate(list_in[idx]))
-        except:
-            return np.nan
-    
-    # Go to the OGLE alerts site and scrape the page.
-    year = str(year)
-    url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/ews.html"
-    response = urlopen(url)
-    html = response.read()
-    response.close()
-    soup = BeautifulSoup(html,"html.parser")
-
-    # Figure out how many alert pages there are.
-    npages = len(soup.find_all('td')[0::15])
-    
-    # Values we are going to populate
-    t0 = np.zeros(npages)
-    t0e = np.zeros(npages)
-    tE = np.zeros(npages)
-    tEe = np.zeros(npages) 
-    u0 = np.zeros(npages) 
-    u0e = np.zeros(npages) 
-    A = np.zeros(npages) 
-    Ae = np.zeros(npages) 
-    Dmag = np.zeros(npages) 
-    Dmage = np.zeros(npages) 
-    fbl = np.zeros(npages) 
-    fble = np.zeros(npages) 
-    Ibl = np.zeros(npages) 
-    Ible = np.zeros(npages) 
-    I0 = np.zeros(npages) 
-    I0e = np.zeros(npages) 
-
-    _t0 = time.time()
-    # Go to each page and populate values
-    for nn in np.arange(npages):
-        print(nn)
-        url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
-        response = urlopen(url)
-        html = response.read()
-        response.close()
-        soup = BeautifulSoup(html,"html.parser")
-        param_tab = soup.find_all('table')[2].find('td').text
-        param_list = param_tab.split()
-        t0[nn] = ogle_str_to_float(param_list, 1)
-        t0e[nn] = ogle_str_to_float(param_list, 3)
-        tE[nn] =  ogle_str_to_float(param_list, 7)
-        tEe[nn] =  ogle_str_to_float(param_list, 9)
-        u0[nn] =  ogle_str_to_float(param_list, 11)
-        u0e[nn] =  ogle_str_to_float(param_list, 13)
-        A[nn] =  ogle_str_to_float(param_list, 15)
-        Ae[nn] =  ogle_str_to_float(param_list, 17)
-        Dmag[nn] =  ogle_str_to_float(param_list, 19)
-        Dmage[nn] =  ogle_str_to_float(param_list, 21)
-        fbl[nn] =  ogle_str_to_float(param_list, 23)
-        fble[nn] =  ogle_str_to_float(param_list, 25)
-        Ibl[nn] =  ogle_str_to_float(param_list, 27)
-        Ible[nn] =  ogle_str_to_float(param_list, 29)
-        I0[nn] = ogle_str_to_float(param_list, 31)
-        I0e[nn] =  ogle_str_to_float(param_list, 33)
-            
-    # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(t0, t0e, tE, tEe, u0, u0e, A, Ae, 
-                               Dmag, Dmage, fbl, fble, Ibl, Ible, I0, I0e)),
-                     columns =['t0', 't0e', 'tE', 'tEe', 'u0', 'u0e', 'A', 'Ae', 
-                               'Dmag', 'Dmage', 'fbl', 'fble', 'Ibl', 'Ible', 'I0', 'I0e'])
-
-    df.to_sql(con=engine, schema=None, name="ogle_alerts_errors_" + year, if_exists="replace", index=False)
-    
-    _t1 = time.time()
-    print('Took {0:.2f} seconds'.format(_t1-_t0))
-    
-def get_moa_alerts_errors(year):
-    """
-    **********************
-    !!!!!!! FIXME !!!!!!!!
-    **********************
-    Function that grabs OGLE alerts and writes the fit
-    tE and Ibase parameters to a table in the database.
-    
-    Parameters
-    ----------
-    year : int
-        Year of the OGLE alerts you want.
-        Valid choices are 2001 - 2019, inclusive.
-        
-    Outputs
-    -------
-    sqlite table called ogle_alerts_<YYYY> in microlensing.db
-    Columns are alert_name, tE, Ibase, alert_url.
-    """    
-    def moa_str_to_float(list_in):
-        try:
-            return float(ne.evaluate(list_in))
-        except:
-            return np.nan
-    
-    # Go to the MOA alerts site and scrape the page.
-    year = str(year)
-    url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/alert.php"
-    response = urlopen(url)
-    html = response.read()
-    response.close()
-    soup = BeautifulSoup(html,"html.parser")
-
-    # Get a list of all the bulge microlensing alert directories.
-    links = soup.find_all('a', href=True)
-    alert_dirs = []
-    for ii, link in enumerate(links):
-        if 'BLG' in link.text:
-            alert_dirs.append(links[ii]['href'])
-        
-    # Values we are going to populate
-    npages = len(alert_dirs)
-    t0_arr = np.zeros(npages)
-    t0e_arr = np.zeros(npages)
-    tE_arr = np.zeros(npages)
-    tEe_arr = np.zeros(npages) 
-    u0_arr = np.zeros(npages) 
-    u0e_arr = np.zeros(npages) 
-    Ibase_arr = np.zeros(npages) 
-    Ibasee_arr = np.zeros(npages) 
-
-    _t0 = time.time()
-    # Go to the page for each bulge microlensing alert.
-    for nn, alert_dir in enumerate(alert_dirs):
-        # Scrape the page.
-        url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
-        response = urlopen(url)
-        html = response.read()
-        response.close()
-        soup = BeautifulSoup(html,"html.parser")
-        
-        t0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[1]
-        t0 = t0_str.split()[1]
-        t0e = t0_str.split('<td>')[2].split()[0]
-
-        tE_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[2]
-        tE = tE_str.split()[0]
-        tEe = tE_str.split('<td>')[2].split()[0]
-
-        u0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[3]
-        u0 = u0_str.split()[0]
-        u0e = u0_str.split('<td>')[2].split()[0].split('<')[0]
-
-        Ibase_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[4]
-        Ibase = Ibase_str.split()[0]
-        Ibasee = Ibase_str.split('<td>')[2].split()[0].split('<')[0]
-        
-        t0_arr[nn] = moa_str_to_float(t0)
-        t0e_arr[nn] = moa_str_to_float(t0e)
-        tE_arr[nn] =  moa_str_to_float(tE)
-        tEe_arr[nn] =  moa_str_to_float(tEe)
-        u0_arr[nn] =  moa_str_to_float(u0)
-        u0e_arr[nn] =  moa_str_to_float(u0e)
-        Ibase_arr[nn] =  moa_str_to_float(Ibase)
-        Ibasee_arr[nn] =  moa_str_to_float(Ibasee)
-            
-    # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(t0_arr, t0e_arr, tE_arr, tEe_arr, 
-                               u0_arr, u0e_arr, Ibase_arr, Ibasee_arr)),
-                     columns =['t0', 't0e', 'tE', 'tEe', 'u0', 'u0e', 'Ibase', 'Ibasee'])
-
-    df.to_sql(con=engine, schema=None, name="moa_alerts_errors_" + year, if_exists="replace", index=False)
-    
-    _t1 = time.time()
-    print('Took {0:.2f} seconds'.format(_t1-_t0))

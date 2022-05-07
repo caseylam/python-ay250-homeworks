@@ -16,6 +16,7 @@ app = Flask(__name__)
 # Option to save querys? 
 # How to do version control? (As alert values update.) Have multiple databases? 
 # Save in the database name the day it was created? 
+# Have way to download database.
 
 engine = create_engine('sqlite:///microlensing.db')
 conn = engine.connect()
@@ -24,8 +25,8 @@ conn = engine.connect()
 def start_page():
     """
     Homepage. Depending on whether there is a database or not,
-    will either prompt you to upload, or will give you the 
-    option to upload or query.
+    will either prompt you to download, or will give you the 
+    option to download, query, or view MOA lightcurves.
     """
     if engine.table_names() == []:
         return render_template('start_empty.html', web_download_to_db=url_for('web_download_to_db'))
@@ -39,71 +40,57 @@ def start_page():
 
 @app.route('/update', methods=['GET', 'POST'])
 def web_download_to_db():
-    """
-    FIXME: add an option to choose whether to keep or delete database.
-    Don't redownload old years?
-    """
+    if request.method == 'POST':
+        duplicate_list = []
+        update_list = []
+        download_list = []
+
+        this_year = str(datetime.date.today().year)
+        this_year = '2019'
+
+        keys = list(request.form.to_dict().keys())
+        for ii, key in enumerate(keys):
+            system, data, year = key.split('_')
+            print(key)
+
+            if key in engine.table_names():
+                if this_year == year:
+                    update_list.append(key)
+                    # FIXME: DELETE THE OLD TABLE FROM THE DATABASE.
+                else:
+                    duplicate_list.append(key)
+            else:
+                download_list.append(key)
+
+        for ii, key in enumerate(keys):
+            system, data, year = key.split('_')
+            if key in update_list + download_list:
+                if system == 'kmtnet':
+                    if data == 'alerts':
+                        query_alerts.get_kmtnet_alerts(year)
+                    else: # lightcurves
+                        query_alerts.get_kmtnet_lightcurves(year)
+                elif system == 'ogle':
+                    if data == 'alerts':
+                        query_alerts.get_ogle_alerts(year, use_pool=True)
+                    else: # lightcurves
+                        query_alerts.get_ogle_lightcurves(year)
+                else: # MOA
+                    if data == 'alerts':
+                        query_alerts.get_moa_alerts(year)
+                    else: # lightcurves
+                        query_alerts.get_moa_lightcurves(year)
+
+        # How to show processing? Googling "stream" and "dynamic" but I don't think that's what I want.
+        return render_template('download_results.html', 
+                                duplicate_list=duplicate_list,
+                                update_list=update_list,
+                                download_list=download_list,
+                                web_download_to_db=url_for('web_download_to_db'), 
+                                query_db=url_for('query_db'),
+                                start_page=url_for('start_page'))
     
     return render_template('download_data.html', start_page=url_for('start_page'))
-
-@app.route('/handle_data', methods=['GET', 'POST'])
-def handle_data():
-    """
-    FIXME: add an option to choose whether to keep or delete database.
-    """
-    duplicate_list = []
-    update_list = []
-    download_list = []
-
-    this_year = str(datetime.date.today().year)
-    this_year = str(2019)
-    
-    keys = list(request.form.to_dict().keys())
-    for ii, key in enumerate(keys):
-        system, data, year = key.split('_')
-        print(key)
-        
-        if key in engine.table_names():
-            if this_year == year:
-                update_list.append(key)
-                # FIXME: DELETE THE OLD TABLE FROM THE DATABASE.
-            else:
-                duplicate_list.append(key)
-        else:
-            download_list.append(key)
-
-    for ii, key in enumerate(keys):
-        system, data, year = key.split('_')
-        if key in update_list + download_list:
-            if system == 'kmtnet':
-                if data == 'alerts':
-                    query_alerts.get_kmtnet_alerts(year)
-                else: # lightcurves
-                    query_alerts.get_kmtnet_lightcurves(year)
-            elif system == 'ogle':
-                if data == 'alerts':
-                    # query_alerts.get_ogle_alerts(year)
-                    query_alerts.get_ogle_alerts_errors(year)
-                else: # lightcurves
-                    query_alerts.get_ogle_lightcurves(year)
-            else: # MOA
-                if data == 'alerts':
-                    # query_alerts.get_moa_alerts(year)
-                    query_alerts.get_moa_alerts_errors(year)
-                else: # lightcurves
-                    query_alerts.get_moa_lightcurves(year)
-    # FIXME: CHECK ON CAPITALIZATIONS AND THINGS!!!!!!!!!
-#     print('update_list', update_list)
-#     print('duplicate_list', duplicate_list)
-#     print('download_list', download_list)
-    # How to show processing? Googling "stream" and "dynamic" but I don't think that's what I want.
-    return render_template('download_results.html', 
-                            duplicate_list=duplicate_list,
-                            update_list=update_list,
-                            download_list=download_list,
-                            web_download_to_db=url_for('web_download_to_db'), 
-                            query_db=url_for('query_db'),
-                            start_page=url_for('start_page'))
 
 @app.route('/query', methods=['GET', 'POST'])
 def query_db():
@@ -146,7 +133,7 @@ def query_db():
 def plot_moa(moa_alert_names):
     return render_template('test_number.html', 
                            home=url_for('home'),
-                        next_page=url_for('print_num', ii=ii+1), 
+                            next_page=url_for('print_num', ii=ii+1), 
                             prev_page=url_for('print_num', ii=ii-1), 
                             qmax=n_lc + 1)
     
