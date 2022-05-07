@@ -191,8 +191,8 @@ def get_kmtnet_lightcurves(year):
     t0 = time.time()
     # Go to the KMTNet alerts site and scrape the page for each alert.
     for nn in np.arange(start=1, stop=nobj+1, step=1):
-        url = "https://kmtnet.kasi.re.kr/~ulens/event/" + year + "/view.php?event=KMT-" + year + \
-                "-BLG-" + str(nn).zfill(4)
+        url = "https://kmtnet.kasi.re.kr/~ulens/event/" + year + \
+                "/view.php?event=KMT-" + year + "-BLG-" + str(nn).zfill(4)
         response = urlopen(url)
         html = response.read()
         response.close()
@@ -211,7 +211,8 @@ def get_kmtnet_lightcurves(year):
                 bytes_data = requests.get(url).content
                 df = pd.read_csv(BytesIO(bytes_data), 
                                  delim_whitespace=True, skiprows=1, header=None, 
-                                 names=['hjd', 'Delta_flux', 'flux_err', 'mag', 'mag_err', 'fwhm', 'sky', 'secz'])
+                                 names=['hjd', 'Delta_flux', 'flux_err', 'mag', 
+                                        'mag_err', 'fwhm', 'sky', 'secz'])
 
                 # Add columns for the alert name (of the form KBYYNNNN, YY=year, NNNN=alert number)
                 # and the name of the lightcurve's pysis file.
@@ -226,6 +227,48 @@ def get_kmtnet_lightcurves(year):
     
     print('Took {0:.2f} seconds'.format(t1-t0))
 
+def get_moa_params(alert_dir, year, nn):  
+    """
+    Get all the different OGLE alert parameters (along with their uncertainties)
+    from the individual web pages. The uncertainties are not listed on the 
+    front summary page or lenses.par file in the data download unfortunately.
+    
+    The "_e" values are the uncertainties.
+    """
+    # Add a column for the alert name (of the form MBYYNNN, YY=year, NNN=alert number)
+    alert_name = 'MB' + year[2:] + str(nn + 1).zfill(3)  # need to make sure this always works.
+    
+    url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
+    response = urlopen(url)
+    html = response.read()
+    response.close()
+    soup = BeautifulSoup(html,"html.parser")
+
+    meta = soup.find('div', id="metadata").text
+    RA = meta.split('RA:')[1].split('Dec:')[0]
+    Dec = meta.split('RA:')[1].split('Dec:')[1].split('Current')[0]
+
+    tmax_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[1]
+    tmax = moa_str_to_float(tmax_str.split()[1])
+    tmax_e = moa_str_to_float(tmax_str.split('<td>')[2].split()[0])
+
+    tE_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[2]
+    tE = moa_str_to_float(tE_str.split()[0])
+    tE_e = moa_str_to_float(tE_str.split('<td>')[2].split()[0])
+
+    u0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[3]
+    u0 = moa_str_to_float(u0_str.split()[0])
+    u0_e = moa_str_to_float(u0_str.split('<td>')[2].split()[0].split('<')[0])
+
+    Ibase_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[4]
+    Ibase = moa_str_to_float(Ibase_str.split()[0])
+    Ibase_e = moa_str_to_float(Ibase_str.split('<td>')[2].split()[0].split('<')[0])
+
+    assessment = soup.find('div', id="metadata").find_all('td', align='right')[4].text
+    
+    return alert_name, RA, Dec, tmax, tmax_e, tE, tE_e, \
+            u0, u0_e, Ibase, Ibase_e, assessment, url
+    
 def get_moa_alerts(year):
     """
     **********************
@@ -245,12 +288,6 @@ def get_moa_alerts(year):
     sqlite table called ogle_alerts_<YYYY> in microlensing.db
     Columns are alert_name, tE, Ibase, alert_url.
     """    
-    def moa_str_to_float(list_in):
-        try:
-            return float(ne.evaluate(list_in))
-        except:
-            return np.nan
-    
     # Go to the MOA alerts site and scrape the page.
     year = str(year)
     url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/alert.php"
@@ -268,73 +305,43 @@ def get_moa_alerts(year):
         
     # Values we are going to populate
     npages = len(alert_dirs)
-    RA_arr = np.zeros(npages)
-    Dec_arr = np.zeros(npages)
-    tmax_arr = np.zeros(npages)
-    tmax_e_arr = np.zeros(npages)
-    tE_arr = np.zeros(npages)
-    tE_e_arr = np.zeros(npages) 
-    u0_arr = np.zeros(npages) 
-    u0_e_arr = np.zeros(npages) 
-    Ibase_arr = np.zeros(npages) 
-    Ibase_e_arr = np.zeros(npages) 
 
-    _t0 = time.time()
     # Go to the page for each bulge microlensing alert.
-    for nn, alert_dir in enumerate(alert_dirs):
-        # Scrape the page.
-        url = "http://www.massey.ac.nz/~iabond/moa/alert" + year + "/" + alert_dir
-        response = urlopen(url)
-        html = response.read()
-        response.close()
-        soup = BeautifulSoup(html,"html.parser")
-        
-        meta = soup.find('div', id="metadata").text
-        ra = meta.split('RA:')[1].split('Dec:')[0]
-        dec = meta.split('RA:')[1].split('Dec:')[1].split('Current')[0]
-        
-        tmax_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[1]
-        tmax = tmax_str.split()[1]
-        tmax_e = tmax_str.split('<td>')[2].split()[0]
-
-        tE_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[2]
-        tE = tE_str.split()[0]
-        tE_e = tE_str.split('<td>')[2].split()[0]
-
-        u0_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[3]
-        u0 = u0_str.split()[0]
-        u0_e = u0_str.split('<td>')[2].split()[0].split('<')[0]
-
-        Ibase_str = soup.find('div', id="lastphot").text.split('<td>=<td align=right>')[4]
-        Ibase = Ibase_str.split()[0]
-        Ibase_e = Ibase_str.split('<td>')[2].split()[0].split('<')[0]
-        
-        RA_arr[nn] = ra
-        Dec_arr[nn] = dec
-        tmax_arr[nn] = moa_str_to_float(t0)
-        tmax_e_arr[nn] = moa_str_to_float(t0e)
-        tE_arr[nn] =  moa_str_to_float(tE)
-        tE_e_arr[nn] =  moa_str_to_float(tEe)
-        u0_arr[nn] =  moa_str_to_float(u0)
-        u0_e_arr[nn] =  moa_str_to_float(u0e)
-        Ibase_arr[nn] =  moa_str_to_float(Ibase)
-        Ibase_e_arr[nn] =  moa_str_to_float(Ibasee)
-            
+    _t0 = time.time()     
+    num_workers = mp.cpu_count()  
+    pool = mp.Pool(processes=num_workers)
+    parallel_results = pool.starmap(get_moa_params, 
+                                    zip(alert_dirs, repeat(year), range(npages)))
+    _t1 = time.time()
+    
     # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(RA_arr, Dec_arr, tmax_arr, tmax_e_arr, 
-                               tE_arr, tE_e_arr, u0_arr, u0_e_arr, 
-                               Ibase_arr, Ibase_e_arr)),
-                     columns =['RA_arr', 'Dec_arr', 'tmax_arr', 'tmax_e_arr', 
-                               'tE_arr', 'tE_e_arr', 'u0_arr', 'u0_e_arr', 
-                               'Ibase_arr', 'Ibase_e_arr'])
+    df = pd.DataFrame(parallel_results,
+                     columns = ['alert_name', 'RA', 'Dec', 'tmax', 'tmax_e', 'tE', 'tE_e', 
+                                'u0', 'u0_e', 'Ibase', 'Ibase_e', 'assessment', 'alert_url'])
 
+    # Write HJD as HJD - 2450000 (less cumbersome digits)
+    df['tmax'] -= 2450000
+    
     df.to_sql(con=engine, schema=None, name="moa_alerts_" + year, if_exists="replace", index=False)
     
     _t1 = time.time()
     print('Took {0:.2f} seconds'.format(_t1-_t0))
 
-def get_ogle_params(year, nn):    
-    url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + "/blg-" + str(nn+1).zfill(4) + ".html"
+def get_ogle_params(year, nn):  
+    """
+    Get all the different OGLE alert parameters (along with their uncertainties)
+    from the individual web pages. The uncertainties are not listed on the 
+    front summary page or lenses.par file in the data download unfortunately.
+    
+    The "_e" values are the uncertainties.
+    """
+    
+    # Add a column for the alert name (of the form OBYYNNNN, YY=year, NNN=alert number)
+    # and the alert url
+    alert_name = 'OB' + year[2:] + str(nn + 1).zfill(4) 
+    
+    url = "https://ogle.astrouw.edu.pl/ogle4/ews/" + year + \
+            "/blg-" + str(nn+1).zfill(4) + ".html"
     response = urlopen(url)
     html = response.read()
     response.close()
@@ -361,12 +368,24 @@ def get_ogle_params(year, nn):
     I0 = ogle_str_to_float(param_list, 31)
     I0_e =  ogle_str_to_float(param_list, 33)
 
-    return RA, Dec, Tmax, Tmax_e, tau, tau_e, Umin, Umin_e, \
-            Amax, Amax_e, Dmag, Dmag_e, fbl, fbl_e, Ibl, Ibl_e, I0, I0_e
+    return alert_name, RA, Dec, Tmax, Tmax_e, tau, tau_e, Umin, Umin_e, \
+            Amax, Amax_e, Dmag, Dmag_e, fbl, fbl_e, Ibl, Ibl_e, I0, I0_e, url
     
 def ogle_str_to_float(list_in, idx):
+    """
+    Little helper function to turn strings into floats.
+    """
     try:
         return float(ne.evaluate(list_in[idx]))
+    except:
+        return np.nan
+    
+def moa_str_to_float(str_in):
+    """
+    Little helper function to turn strings into floats.
+    """
+    try:
+        return float(ne.evaluate(str_in))
     except:
         return np.nan
         
@@ -400,6 +419,9 @@ def get_ogle_alerts(year):
     # Figure out how many alert pages there are.
     npages = len(soup.find_all('td')[0::15])
     
+    # Grab all the parameters from the OGLE pages.
+    # Use pool to parallelize (it is very slow otherwise,
+    # since we have to loop through each page individually.)
     _t0 = time.time()     
     num_workers = mp.cpu_count()  
     pool = mp.Pool(processes=num_workers)
@@ -408,9 +430,12 @@ def get_ogle_alerts(year):
 
     # Put it all into a dataframe and write out to the database.
     df = pd.DataFrame(parallel_results,
-                     columns =['RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
+                     columns =['alert_name', 'RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
                                'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
-                               'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e'])
+                               'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e', 'alert_url'])
+
+    # Write HJD as HJD - 2450000 (less cumbersome digits)
+    df['Tmax'] -= 2450000
 
     df.to_sql(con=engine, schema=None, name="ogle_alerts_" + year, if_exists="replace", index=False)
     
