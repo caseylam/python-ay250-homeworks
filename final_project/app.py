@@ -16,13 +16,6 @@ import base64
 
 app = Flask(__name__)
 
-# Write a function to view lightcurves (click and can go back to list, or go "next"), with an option to sort.
-# Write a function to query and sort. 
-# Option to save querys? 
-# How to do version control? (As alert values update.) Have multiple databases? 
-# Save in the database name the day it was created? 
-# Have way to download database.
-
 engine = create_engine('sqlite:///microlensing.db')
 conn = engine.connect()
 
@@ -124,13 +117,50 @@ def query_db():
                            dbs=engine.table_names())
 
 def create_figure(time, mag, mag_err, moa_alert_name):
-    fig = Figure()
+    """
+    Plot MOA lightcurve.
+    
+    Parameters
+    ----------
+    time : array-like
+        Time (HJD - 2450000)
+        
+    mag : array-like
+        I-band magnitude
+    
+    mag_err : array-like
+        Magnitude uncertainties
+        
+    moa_alert_name : string
+        Name of the MOA alert
+        
+    Return
+    ------
+    pngImageB64String : FIXME what is this really?
+        This format was chosen so you can pass it into <img src = ...
+    """
+    big_err = np.quantile(mag_err, 0.95)
+    print(big_err)
+    idx = np.where(mag_err < big_err)[0]
+    print(idx)
+    
+    if isinstance(mag, list): 
+        mag = np.array(mag)
+    
+    ymin = np.min(mag[idx])
+    ymax = np.max(mag[idx])
+    
+    fig = Figure(figsize=(10,6))
     axis = fig.add_subplot(1, 1, 1)
-    axis.set_ylim(np.min(mag) - 0.2, np.max(mag) + 0.2)
-    axis.set_xlim(9246, 9246 + 365 + 180)
+    axis.set_ylim(ymin - 0.2, ymax + 0.2)
+#    axis.set_xlim(9246, 9246 + 365 + 180)
     axis.invert_yaxis()
-    axis.errorbar(time, mag, yerr=mag_err, ls='none', marker='.')
+    axis.set_xlabel('HJD - 2450000')
+    axis.set_ylabel('I mag')
+    axis.errorbar(time, mag, yerr=mag_err, ls='none', marker='.', alpha=0.7)
     axis.set_title(moa_alert_name)
+    
+    # Fancy saving stuff: https://stackoverflow.com/questions/61398636/python-flask-matplotlib
     pngImage = io.BytesIO()
     FigureCanvas(fig).print_png(pngImage)
     
@@ -139,18 +169,13 @@ def create_figure(time, mag, mag_err, moa_alert_name):
     pngImageB64String += base64.b64encode(pngImage.getvalue()).decode('utf8')
 
     return pngImageB64String
-#     fig.savefig(img)
-#     img.seek(0)
-#    return send_file(img, mimetype='image/png')
-#    return fig
 
-# @app.route('/plot/<moa_alert_name>')
-# @app.route('/plot.png')
 @app.route('/fig/<moa_alert_name>')
 def plot_moa(moa_alert_name):
     # Check if variable exists first.
     # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
-    query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_2022 WHERE alert_name = "' + moa_alert_name + '"'
+    query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_2022 WHERE alert_name = "' + \
+                moa_alert_name + '"' + "AND hjd < 9791 AND hjd > 9246"
     db_info = engine.execute(query_str).fetchall()
     time = [info[0] for info in db_info]
     mag = [info[1] for info in db_info]
@@ -165,40 +190,9 @@ def plot_moa(moa_alert_name):
                            home=url_for('start_page'),
                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-#                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-#                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
                             qmax=n_lc + 1,
                             moa_names=moa_names,
                            image=fig)
-#    return render_template("image.html", image=fig) 
-
-
-#     output = io.BytesIO()
-#     FigureCanvas(fig).print_png(output)
-#    return Response(output.getvalue(), mimetype='image/png')
-
-# def fig(moa_alert_name):
-#     fig = draw_polygons(cropzonekey)
-#     img = StringIO()
-#     fig.savefig(img)
-#     img.seek(0)
-#     return send_file(img, mimetype='image/png')
-#    return send_file(img, mimetype='image/png')
-
-@app.route('/images/<moa_alert_name>')
-def images(moa_alert_name):
-#     return render_template("images.html", title=cropzonekey)
-    n_lc = len(moa_names)
-    ii = moa_names.index(moa_alert_name)
-    
-    return render_template('show_moa_lc.html', 
-                           home=url_for('start_page'),
-                            next_page=url_for('images', moa_alert_name=moa_names[ii+1]), 
-                            prev_page=url_for('images', moa_alert_name=moa_names[ii-1]), 
-#                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-#                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                            qmax=n_lc + 1,
-                            moa_names=moa_names)
     
 @app.route('/browse_moa', methods=['GET', 'POST'])
 def browse_moa():
