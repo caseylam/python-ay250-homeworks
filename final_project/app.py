@@ -13,7 +13,6 @@ from matplotlib.figure import Figure
 import io
 import base64
 
-
 app = Flask(__name__)
 
 engine = create_engine('sqlite:///microlensing.db')
@@ -27,7 +26,8 @@ def start_page():
     option to download, query, or view MOA lightcurves.
     """
     if engine.table_names() == []:
-        return render_template('start_empty.html', web_download_to_db=url_for('web_download_to_db'))
+        return render_template('start_empty.html', 
+                               web_download_to_db=url_for('web_download_to_db'))
 
     else:
         return render_template('start_filled.html', 
@@ -38,13 +38,22 @@ def start_page():
 
 @app.route('/update', methods=['GET', 'POST'])
 def web_download_to_db():
+    """
+    Page that lets you pick what data to download.
+    """
     if request.method == 'POST':
+        
+        # We divide up datasets into things that have:
+        # 1) already been downloaded (duplicate)
+        # 2) already been downloaded, but are
+        #    from the current year of alerts (update)
+        # 3) not yet been downloaded (download)
         duplicate_list = []
         update_list = []
         download_list = []
 
         this_year = str(datetime.date.today().year)
-        this_year = '2019'
+        this_year = '2019' # FIXME TEMPORARY FOR DEBUGGING.
 
         keys = list(request.form.to_dict().keys())
         for ii, key in enumerate(keys):
@@ -60,24 +69,28 @@ def web_download_to_db():
             else:
                 download_list.append(key)
 
+        # If dataset is in download or update list, then download
+        # the right combo of KMTNet/OGLE/MOA lightcurves/alerts.
         for ii, key in enumerate(keys):
             system, data, year = key.split('_')
             if key in update_list + download_list:
                 if system == 'kmtnet':
                     if data == 'alerts':
                         query_alerts.get_kmtnet_alerts(year)
-                    else: # lightcurves
+                    else: 
                         query_alerts.get_kmtnet_lightcurves(year)
                 elif system == 'ogle':
                     if data == 'alerts':
                         query_alerts.get_ogle_alerts(year)
-                    else: # lightcurves
+                    else: 
                         query_alerts.get_ogle_lightcurves(year)
-                else: # MOA
+                elif system == 'moa': 
                     if data == 'alerts':
                         query_alerts.get_moa_alerts(year)
-                    else: # lightcurves
+                    else:
                         query_alerts.get_moa_lightcurves(year)
+                else:
+                    raise Exception('That is not a valid survey name!')
 
         # How to show processing? Googling "stream" and "dynamic" but I don't think that's what I want.
         return render_template('download_results.html', 
@@ -93,7 +106,7 @@ def web_download_to_db():
 @app.route('/query', methods=['GET', 'POST'])
 def query_db():
     """
-    Provide the interface to query the database.
+    Page that provides the interface to query the database.
     """
     if request.method == 'POST':
         query_str = request.form['query']
@@ -139,21 +152,29 @@ def create_figure(time, mag, mag_err, moa_alert_name):
     pngImageB64String : FIXME what is this really?
         This format was chosen so you can pass it into <img src = ...
     """
+    #####
+    # Figure out limits for plotting the y-axis (magnitude).
+    ####
+    # MOA alert data is very noisy. We will take the minimum and maximum
+    # magnitude range of the observations. But we only use the observations
+    # that have error bars in 95% or lower. (Could tweak, I arbitrarily  chose
+    # this number to cut out as much junky stuff as possible, but hopefully not 
+    # actual data or the peak of the lightcurve.)
     big_err = np.quantile(mag_err, 0.95)
-    print(big_err)
     idx = np.where(mag_err < big_err)[0]
-    print(idx)
-    
+
+    # Convert list to array if necessary, otherwise we can't index.
     if isinstance(mag, list): 
         mag = np.array(mag)
     
+    # Get our min and max magnitudes from the less noisy data.
     ymin = np.min(mag[idx])
     ymax = np.max(mag[idx])
     
+    # Set up the figure and plot the lightcurve.
     fig = Figure(figsize=(10,6))
     axis = fig.add_subplot(1, 1, 1)
     axis.set_ylim(ymin - 0.2, ymax + 0.2)
-#    axis.set_xlim(9246, 9246 + 365 + 180)
     axis.invert_yaxis()
     axis.set_xlabel('HJD - 2450000')
     axis.set_ylabel('I mag')
@@ -172,6 +193,9 @@ def create_figure(time, mag, mag_err, moa_alert_name):
 
 @app.route('/fig/<moa_alert_name>')
 def plot_moa(moa_alert_name):
+    """
+    Page that shows the MOA lightcurve in magnitude space.
+    """
     # Check if variable exists first.
     # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
     query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_2022 WHERE alert_name = "' + \
@@ -185,17 +209,38 @@ def plot_moa(moa_alert_name):
     
     n_lc = len(moa_names)
     ii = moa_names.index(moa_alert_name)
- 
-    return render_template('show_moa_lc.html', 
-                           home=url_for('start_page'),
+
+    # FIXME: Something funny here with the indexing.
+    # Next pages are not showing the right things.
+    
+    if ii == 0:
+        return render_template('show_moa_lc_first.html', 
+                            home=url_for('start_page'),
+                            next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+                            qmax=n_lc-1,
+                            moa_names=moa_names,
+                            image=fig)
+    elif ii == n_lc - 1:
+        return render_template('show_moa_lc_last.html', 
+                            home=url_for('start_page'),
+                            prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+                            qmax=n_lc-1,
+                            moa_names=moa_names,
+                            image=fig)
+    else:
+        return render_template('show_moa_lc.html', 
+                            home=url_for('start_page'),
                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                            qmax=n_lc + 1,
+                            qmax=n_lc-1,
                             moa_names=moa_names,
-                           image=fig)
+                            image=fig)
     
 @app.route('/browse_moa', methods=['GET', 'POST'])
 def browse_moa():
+    """
+    Page that lets you pick which MOA lightcurves you want to plot in magnitude space.
+    """
     if request.method == 'POST':
         query_str = request.form['query']
         db_info = engine.execute('SELECT DISTINCT alert_name ' + query_str).fetchall()
@@ -210,7 +255,9 @@ def browse_moa():
             global moa_names
             moa_names = [str(mname).strip(',()\'') for mname in db_info]
             return render_template('moa_lightcurves_list.html', 
-                                    alert_names=moa_names)
+                                    alert_names=moa_names,
+                                    start_page=url_for('start_page'),
+                                    browse_moa=url_for('browse_moa'))
         
     dbs=engine.table_names()
     moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
