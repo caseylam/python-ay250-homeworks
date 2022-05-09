@@ -12,6 +12,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 import io
 import base64
+import numexpr as ne
 
 app = Flask(__name__)
 
@@ -127,7 +128,17 @@ def query_db():
     return render_template('query.html', 
                            web_download_to_db=url_for('web_download_to_db'),
                            start_page=url_for('start_page'), 
+                           alert_column_names=url_for('alert_column_names'),
                            dbs=engine.table_names())
+
+@app.route('/alert_column_names', methods=['GET', 'POST'])
+def alert_column_names():
+    """
+    Page that lists all the alert column names.
+    """
+    return render_template('alert_help.html', 
+                           query_db=url_for('query_db'),
+                           start_page=url_for('start_page'))
 
 def create_figure(time, mag, mag_err, moa_alert_name):
     """
@@ -162,23 +173,32 @@ def create_figure(time, mag, mag_err, moa_alert_name):
     # actual data or the peak of the lightcurve.)
     big_err = np.quantile(mag_err, 0.95)
     idx = np.where(mag_err < big_err)[0]
-
-    # Convert list to array if necessary, otherwise we can't index.
-    if isinstance(mag, list): 
-        mag = np.array(mag)
     
     # Get our min and max magnitudes from the less noisy data.
     ymin = np.min(mag[idx])
     ymax = np.max(mag[idx])
     
+    # Change opacity of points depending how many there are.
+    npoints = len(time)
+    if (npoints <= 5000):
+        alpha=0.6
+    elif (npoints <= 10000) & (npoints > 5000):
+        alpha=0.4
+    elif (npoints <= 30000) & (npoints > 10000):
+        alpha=0.2
+    elif (npoints <= 50000) & (npoints > 30000):
+        alpha = 0.05
+    else:
+        alpha=0.01
+    
     # Set up the figure and plot the lightcurve.
-    fig = Figure(figsize=(10,6))
+    fig = Figure(figsize=(12,6))
     axis = fig.add_subplot(1, 1, 1)
     axis.set_ylim(ymin - 0.2, ymax + 0.2)
     axis.invert_yaxis()
     axis.set_xlabel('HJD - 2450000')
     axis.set_ylabel('I mag')
-    axis.errorbar(time, mag, yerr=mag_err, ls='none', marker='.', alpha=0.7)
+    axis.errorbar(time, mag, yerr=mag_err, ls='none', marker='.', alpha=alpha, color='k')
     axis.set_title(moa_alert_name)
     
     # Fancy saving stuff: https://stackoverflow.com/questions/61398636/python-flask-matplotlib
@@ -198,43 +218,67 @@ def plot_moa(moa_alert_name):
     """
     # Check if variable exists first.
     # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
-    query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_2022 WHERE alert_name = "' + \
-                moa_alert_name + '"' + "AND hjd < 9791 AND hjd > 9246"
+    
+    # Year string.
+    YY = moa_alert_name[2:4]
+    
+    # Grab the MOA hjd, mag, mag_err corresponding to the alert name.
+    query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_20' + YY + \
+                ' WHERE alert_name = "' + moa_alert_name + '"' 
+    
+    # The *1 is just a dumb trick to turn it into an integer.
+    year = ne.evaluate(YY) * 1 
+    hjd_jan_00 = 1154
+    
+    start_date = hjd_jan_00 + 365.25 * (year)
+    end_date = hjd_jan_00 + 365.25 * (year + 2) # This gives us data through that year's alert season.
+    # Why is it year and year+2? Should be year -1 and year+1?
+    
+    # Get hjd, mag, mag_err from the query.
     db_info = engine.execute(query_str).fetchall()
-    time = [info[0] for info in db_info]
-    mag = [info[1] for info in db_info]
-    mag_err = [info[2] for info in db_info]
+    time = np.array([info[0] for info in db_info])
+    mag = np.array([info[1] for info in db_info])
+    mag_err = np.array([info[2] for info in db_info])
     
-    fig = create_figure(time, mag, mag_err, moa_alert_name)
+    # Now only keep things from the year of and before.
+    keep_idx = np.where((time < end_date) & (time > start_date))[0]
     
+    # Make the plot.
+    fig = create_figure(time[keep_idx], mag[keep_idx], mag_err[keep_idx], moa_alert_name)
+    
+    # Figure out which entry in the list this is so we know which template to use below.
     n_lc = len(moa_names)
     ii = moa_names.index(moa_alert_name)
 
-    # FIXME: Something funny here with the indexing.
-    # Next pages are not showing the right things.
-    
+    # Tried to get this if statement into the template but couldn't get it quite to work...
+    # FIXME: Need a catch for edge case with only one result.
+    # First page.
+    if n_lc == 1:
+        return render_template('show_moa_lc_one.html', 
+                                home=url_for('start_page'),
+                                image=fig)
     if ii == 0:
         return render_template('show_moa_lc_first.html', 
-                            home=url_for('start_page'),
-                            next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-                            qmax=n_lc-1,
-                            moa_names=moa_names,
-                            image=fig)
+                                home=url_for('start_page'),
+                                next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+                                moa_names=moa_names,
+                                image=fig)
+    # Last page.
     elif ii == n_lc - 1:
         return render_template('show_moa_lc_last.html', 
-                            home=url_for('start_page'),
-                            prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                            qmax=n_lc-1,
-                            moa_names=moa_names,
-                            image=fig)
+                                home=url_for('start_page'),
+                                prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+                                moa_names=moa_names,
+                                image=fig)
+    # Middle pages.
     else:
         return render_template('show_moa_lc.html', 
-                            home=url_for('start_page'),
-                            next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-                            prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                            qmax=n_lc-1,
-                            moa_names=moa_names,
-                            image=fig)
+                                home=url_for('start_page'),
+                                next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+                                prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+                                qmax=n_lc-1,
+                                moa_names=moa_names,
+                                image=fig)
     
 @app.route('/browse_moa', methods=['GET', 'POST'])
 def browse_moa():
