@@ -1,13 +1,18 @@
 import os
 import pandas as pd
 import numpy as np
-from flask import Flask, flash, request, redirect, url_for, send_from_directory, render_template
+from flask import Flask, Response, flash, request, redirect, url_for, send_from_directory, render_template
 from werkzeug.utils import secure_filename
 import sqlite3
 import query_alerts
 from sqlalchemy import create_engine, text
 from sqlalchemy.sql import select
 import datetime
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+import io
+import base64
+
 
 app = Flask(__name__)
 
@@ -118,31 +123,82 @@ def query_db():
                            start_page=url_for('start_page'), 
                            dbs=engine.table_names())
 
-# @app.route('/browse_moa', methods=['GET', 'POST'])
-# def browse_moa():
-#     dbs=engine.table_names()
-#     moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
-#     if moa_lcs == []:
-#         return render_template('moa_lightcurves_empty.html',
-#                                 web_download_to_db=url_for('web_download_to_db'),
-#                                 start_page=url_for('start_page'))
-#     else:
-#         pass
+def create_figure(time, mag, mag_err, moa_alert_name):
+    fig = Figure()
+    axis = fig.add_subplot(1, 1, 1)
+    axis.set_ylim(np.min(mag) - 0.2, np.max(mag) + 0.2)
+    axis.set_xlim(9246, 9246 + 365 + 180)
+    axis.invert_yaxis()
+    axis.errorbar(time, mag, yerr=mag_err, ls='none', marker='.')
+    axis.set_title(moa_alert_name)
+    pngImage = io.BytesIO()
+    FigureCanvas(fig).print_png(pngImage)
     
-@app.route('/plot/<moa_alert_name>')
+    # Encode PNG image to base64 string
+    pngImageB64String = "data:image/png;base64,"
+    pngImageB64String += base64.b64encode(pngImage.getvalue()).decode('utf8')
+
+    return pngImageB64String
+#     fig.savefig(img)
+#     img.seek(0)
+#    return send_file(img, mimetype='image/png')
+#    return fig
+
+# @app.route('/plot/<moa_alert_name>')
+# @app.route('/plot.png')
+@app.route('/fig/<moa_alert_name>')
 def plot_moa(moa_alert_name):
     # Check if variable exists first.
     # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
+    query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_2022 WHERE alert_name = "' + moa_alert_name + '"'
+    db_info = engine.execute(query_str).fetchall()
+    time = [info[0] for info in db_info]
+    mag = [info[1] for info in db_info]
+    mag_err = [info[2] for info in db_info]
+    
+    fig = create_figure(time, mag, mag_err, moa_alert_name)
     
     n_lc = len(moa_names)
     ii = moa_names.index(moa_alert_name)
-    return render_template('test_number.html', 
+ 
+    return render_template('show_moa_lc.html', 
                            home=url_for('start_page'),
-                           ii=ii,
                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+#                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+#                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
                             qmax=n_lc + 1,
-                          moa_names=moa_names)
+                            moa_names=moa_names,
+                           image=fig)
+#    return render_template("image.html", image=fig) 
+
+
+#     output = io.BytesIO()
+#     FigureCanvas(fig).print_png(output)
+#    return Response(output.getvalue(), mimetype='image/png')
+
+# def fig(moa_alert_name):
+#     fig = draw_polygons(cropzonekey)
+#     img = StringIO()
+#     fig.savefig(img)
+#     img.seek(0)
+#     return send_file(img, mimetype='image/png')
+#    return send_file(img, mimetype='image/png')
+
+@app.route('/images/<moa_alert_name>')
+def images(moa_alert_name):
+#     return render_template("images.html", title=cropzonekey)
+    n_lc = len(moa_names)
+    ii = moa_names.index(moa_alert_name)
+    
+    return render_template('show_moa_lc.html', 
+                           home=url_for('start_page'),
+                            next_page=url_for('images', moa_alert_name=moa_names[ii+1]), 
+                            prev_page=url_for('images', moa_alert_name=moa_names[ii-1]), 
+#                             next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
+#                             prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
+                            qmax=n_lc + 1,
+                            moa_names=moa_names)
     
 @app.route('/browse_moa', methods=['GET', 'POST'])
 def browse_moa():
