@@ -1,0 +1,61 @@
+<!doctype html>
+
+The three different alert systems all report slightly different parameters.
+We follow their naming conventions on their webpages.
+KMTNet does not provide uncertainties.
+Names of the form "&lt;parameter&gt;_e" denote uncertainties on &lt;parameter&gt;.
+
+<p>
+  MOA
+  <ul>
+    <li>alert_name (MB&lt;YY&gt;&lt;NNN&gt;)</li>
+    <li>RA (J2000.0)</li>
+    <li>Dec (J2000.0)</li>
+    <li>tmax, tmax_e (Time of photometric peak, t0)</li>
+    <li>tE, tE_e (Einstein crossing time, days)</li>
+    <li>u0, u0_e (Impact parameter)</li>
+    <li>Ibase, Ibase_e (Baseline magnitude, I-band)</li>
+    <li>assessment (Event classification, e.g. microlensing, cv)</li>
+    <li>alert_url (link)</li>
+  </ul>
+</p>
+
+<p>
+  OGLE
+  <ul>
+    <li>alert_name (of the form OB&lt;YY&gt;&lt;NNNN&gt;)</li>
+    <li>RA (J2000.0)</li>
+    <li>Dec (J2000.0)</li>
+    <li>Tmax, Tmax_e (Time of photometric peak, t0)</li>
+    <li>tau, tau_e (Einstein crossing time, days)</li>
+    <li>Umin, Umin_e (Impact parameter)</li>
+    <li>Amax, Amax_e (Maximum amplification)</li>
+    <li>Dmag, Dmag_e (Peak to baseline magnitude difference)</li>
+    <li>fbl, fbl_e (Blend parameter (FIXME is 0 or 1 unblended?))</li>
+    <li>Ibl, Ibl_e (Baseline magnitude, I-band)</li>
+    <li>I0, I0_e (Source magnitude, I-band)</li>
+    <li>alert_url (link)</li>
+  </ul>
+</p>
+
+<p>
+  KMTNet
+  <ul>
+    <li>alert_name (of the form KB&lt;YY&gt;&lt;NNNN&gt;)</li>
+    <li>RA (J2000.0 ?)</li>
+    <li>Dec (J2000.0 ?)</li>
+    <li(EF/AL) Classification (Chance of microlensing, e.g. clear, probable, not-ulens)</li>
+    <li>t_0 (Time of photometric peak, t0)</li>
+    <li>t_E (Einstein crossing time, days)</li>
+    <li>u_0 (Impact parameter)</li>
+    <li>Isource (Source magnitude, I-band)</li>
+    <li>Ibase (Baseline magnitude, I-band)</li>
+    <li>alert_url (link)</li>
+  </ul>
+FIXME: What is EF/AL??? Also, why do you need Icat? What is A_I?
+</p>
+
+
+<p><a href="{{ query_db }}">Back to the query page.</a></p>
+<p><a href="{{ start_page }}">Back to home.</a></p>
+
