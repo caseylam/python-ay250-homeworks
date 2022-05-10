@@ -478,20 +478,31 @@ def get_kmtnet_alerts(year):
     # For years where there are two classifications, I've picked 
     # AL classification arbitrarily.
     if year in ['2022', '2020', '2017', '2016']:
-        tE = soup.find_all('td')[7::15][1:]
+        class_ = soup.find_all('td')[3::15][1:]
+        RA = soup.find_all('td')[4::15][1:]
+        Dec = soup.find_all('td')[5::15][1:]
+        t_0 = soup.find_all('td')[6::15][1:]
+        t_E = soup.find_all('td')[7::15][1:]
+        u_0 = soup.find_all('td')[8::15][1:]
+        Isource = soup.find_all('td')[9::15][1:]
         Ibase = soup.find_all('td')[10::15][1:]
-        cat = soup.find_all('td')[3::15][1:]
     elif year in ['2021', '2019', '2018']:
-        tE = soup.find_all('td')[8::16][1:]
+        classEF = soup.find_all('td')[3::16][1:]
+        classAL = soup.find_all('td')[4::16][1:]
+        RA = soup.find_all('td')[5::16][1:]
+        Dec = soup.find_all('td')[6::16][1:]
+        t_0 = soup.find_all('td')[7::16][1:]
+        t_E = soup.find_all('td')[8::16][1:]
+        u_0 = soup.find_all('td')[9::16][1:]
+        Isource = soup.find_all('td')[10::16][1:]
         Ibase = soup.find_all('td')[11::16][1:]
-        cat = soup.find_all('td')[4::16][1:]
     else:
         raise Exception('Not a valid year')
 
     # Process output to get strings/floats as appropriate.
     tE_list = [kmtnet_str_to_float(item) for item in tE]
     Ibase_list = [kmtnet_str_to_float(item) for item in Ibase]
-    cat_list = [item.get_text().replace(u'\xa0', u'') for item in cat]
+    class_list = [item.get_text().replace(u'\xa0', u'') for item in class_]
 
     # Get link to the alert page.
     if year in ['2022', '2020', '2017', '2016']:

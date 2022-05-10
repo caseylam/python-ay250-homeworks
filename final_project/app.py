@@ -17,9 +17,9 @@ from flask import make_response
 
 app = Flask(__name__)
 
+# The database.
 engine = create_engine('sqlite:///microlensing.db')
-# conn = engine.connect()
-# with engine.connect() as connection:
+
 @app.route('/', methods=['GET', 'POST'])
 def start_page():
     """
@@ -107,6 +107,11 @@ def web_download_to_db():
 
 @app.route('/download_csv/<query_str>', methods=['GET', 'POST'])
 def download_csv(query_str):
+    """
+    Download the result of the SQL query as a CSV file.
+    Note: can read the result with pandas read_csv and it will
+    give you the column names.
+    """
     with engine.connect() as conn:
         df = pd.read_sql(query_str, conn)
         print(df.columns)
