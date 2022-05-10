@@ -4,7 +4,7 @@ import numpy as np
 from flask import Flask, Response, flash, request, redirect, url_for, send_from_directory, render_template
 from werkzeug.utils import secure_filename
 import sqlite3
-import query_alerts
+# import query_alerts
 from sqlalchemy import create_engine, text
 from sqlalchemy.sql import select
 import datetime
@@ -20,6 +20,8 @@ app = Flask(__name__)
 # The database.
 engine = create_engine('sqlite:///microlensing.db')
 
+# Check if tables exists yet, if not, then populate?
+
 @app.route('/', methods=['GET', 'POST'])
 def start_page():
     """
@@ -27,18 +29,22 @@ def start_page():
     will either prompt you to download, or will give you the 
     option to download, query, or view MOA lightcurves.
     """
-    if engine.table_names() == []:
-        return render_template('start_empty.html', 
-                               web_download_to_db=url_for('web_download_to_db'))
+#     if engine.table_names() == []:
+#         return render_template('start_empty.html', 
+#                                web_download_to_db=url_for('web_download_to_db'))
 
-    else:
-        return render_template('start_filled.html', 
-                               dbs=engine.table_names(),
-                               web_download_to_db=url_for('web_download_to_db'), 
-                               query_db=url_for('query_db'),
-                               browse_moa=url_for('browse_moa'))
+#     else:
+#         return render_template('start_filled.html', 
+#                                dbs=engine.table_names(),
+#                                web_download_to_db=url_for('web_download_to_db'), 
+#                                query_db=url_for('query_db'),
+#                                browse_moa=url_for('browse_moa'))
+    return render_template('start.html', 
+                           dbs=engine.table_names(),
+                           query_db=url_for('query_db'),
+                           browse_moa=url_for('browse_moa'))
 
-@app.route('/update', methods=['GET', 'POST'])
+# @app.route('/update', methods=['GET', 'POST'])
 def web_download_to_db():
     """
     Page that lets you pick what data to download.
@@ -145,7 +151,7 @@ def query_db():
                                    download_csv=url_for('download_csv', query_str=query_str))
         
     return render_template('query.html', 
-                           web_download_to_db=url_for('web_download_to_db'),
+#                           web_download_to_db=url_for('web_download_to_db'),
                            start_page=url_for('start_page'), 
                            alert_column_names=url_for('alert_column_names'),
                            dbs=engine.table_names())
@@ -323,16 +329,21 @@ def browse_moa():
                                     browse_moa=url_for('browse_moa'))
         
     dbs=engine.table_names()
+    # FIXME: WILL HAVE TO CHANGE THIS.
     moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
-    if moa_lcs == []:
-        return render_template('moa_lightcurves_list.html',
-                                plot_moa=url_for('web_download_to_db'),
-                                start_page=url_for('start_page'))
-    else:
-        return render_template('moa_lightcurves_exist.html',
-                                moa_lcs=moa_lcs,
-                                web_download_to_db=url_for('web_download_to_db'),
-                                start_page=url_for('start_page'))
-    
+#     if moa_lcs == []:
+#         return render_template('moa_lightcurves_list.html',
+#                                 plot_moa=url_for('web_download_to_db'),
+#                                 start_page=url_for('start_page'))
+#     else:
+#         return render_template('moa_lightcurves_exist.html',
+#                                 moa_lcs=moa_lcs,
+#                                 web_download_to_db=url_for('web_download_to_db'),
+#                                 start_page=url_for('start_page'))
+    return render_template('moa_lightcurves.html',
+                            moa_lcs=moa_lcs,
+                            start_page=url_for('start_page'))
+
+
 if __name__ == '__main__':
     app.run(port=8000, debug = True)

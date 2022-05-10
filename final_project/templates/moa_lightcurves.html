@@ -1,0 +1,20 @@
+<!doctype html>
+<title>Query database</title>
+<p>Use SQL query syntax to query the MOA lightcurve tables in the microlensing.db database.</p>
+<p><strong>The query must return alert_name. Fill out the rest of the query.</strong></p>
+
+<p>
+  MOA lightcurve tables in database available to query:<br>
+  <ul>
+    {% for thing in moa_lcs %}
+    <li>{{ thing }}</li>
+    {% endfor %}
+  </ul>
+FIXME: Also add something here where list the MOA alerts. So you can do things like join.
+</p>
+<form method=post enctype=multipart/form-data>
+  SQL query: <strong>SELECT DISTINCT alert_name </strong>
+  <input type=text name=query size=100>
+</form>
+
+<p><a href="{{ start_page }}">Back to home.</a></p>

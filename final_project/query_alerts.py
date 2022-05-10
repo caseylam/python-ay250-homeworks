@@ -16,7 +16,6 @@ from itertools import repeat
 
 # Setting up database stuff with SQLAlchemy.
 engine = create_engine('sqlite:///microlensing.db')
-conn = engine.connect()
 
 def get_moa_lightcurves(year):
     """
@@ -37,8 +36,8 @@ def get_moa_lightcurves(year):
         
     Outputs
     -------
-    sqlite table called moa_<YYYY> in microlensing.db
-    Columns are hjd (HJD - 245000), mag, mag_err, alert_name.
+    sqlite table called photometry in microlensing.db
+    Columns are hjd (HJD - 245000), mag, mag_err, alert_name, and telescope.
     """
     # The delta flux measurements sometimes yield negative fluxes
     # after calibration. Ignore warnings so we don't have to deal
@@ -96,7 +95,9 @@ def get_moa_lightcurves(year):
         df['mag_err'] = 1.09 * df['flux_err']/(df['delta_flux'] + f)
         
         # Add a column for the alert name (of the form MBYYNNN, YY=year, NNN=alert number)
+        # and telescope (MOA)
         df['alert_name'] = 'MB' + year[2:] + str(nn + 1).zfill(3)  # need to make sure this always works.
+        df['telescope'] = 'MOA'
         
         # Write HJD as HJD - 2450000 to match OGLE and KMTNet (less cumbersome digits)
         df['hjd'] -= 2450000
@@ -104,9 +105,9 @@ def get_moa_lightcurves(year):
         # Get rid of all the nans which crop up during the conversion from delta flux to magnitude.
         df.dropna(axis='index', how='any', inplace=True)
 
-        # Write out the HJD, mag, mag_err, and alert_names data into the table. 
-        cols = ['hjd', 'mag', 'mag_err', 'alert_name']
-        df[cols].to_sql(con=engine, schema=None, name="moa_lightcurves_" + year, if_exists="append", index=False)
+        # Write out the HJD, mag, mag_err, telescope, and alert_name data into the table.
+        cols = ['hjd', 'mag', 'mag_err', 'telescope', 'alert_name']
+        df[cols].to_sql(con=engine, schema=None, name="photometry", if_exists="append", index=False)
     t1 = time.time() 
     
     print('Took {0:.2f} seconds'.format(t1-t0))
@@ -124,8 +125,8 @@ def get_ogle_lightcurves(year):
         
     Outputs
     -------
-    sqlite table called ogle_<YYYY> in microlensing.db
-    Columns are hjd (HJD - 245000), mag, mag_err, alert_name.
+    sqlite table called photometry in microlensing.db
+    Columns are hjd (HJD - 245000), mag, mag_err, alert_name, and telescope.
     """
     # Go to the OGLE alert site and get the data with FTP.
     year = str(year)
@@ -150,11 +151,13 @@ def get_ogle_lightcurves(year):
                          widths=[14, 7, 6, 5, 8])
 
         # Add a column for the alert name (of the form OBYYNNNN, YY=year, NNN=alert number)
+        # and telescope (OGLE)
         df['alert_name'] = 'OB' + year[2:] + str(nn + 1).zfill(4) 
-
-        # Write out the HJD, mag, mag_err, and alert_names data into the table. 
-        cols = ['hjd', 'mag', 'mag_err', 'alert_name']
-        df[cols].to_sql(con=engine, schema=None, name="ogle_lightcurves_" + year, if_exists="append", index=False)
+        df['telescope'] = 'OGLE'
+        
+        # Write out the HJD, mag, mag_err, telescope, and alert_name data into the table.
+        cols = ['hjd', 'mag', 'mag_err', 'telescope', 'alert_name']
+        df[cols].to_sql(con=engine, schema=None, name="photometry", if_exists="append", index=False)
 
         ftp.cwd("../")
     t1 = time.time() 
@@ -175,8 +178,8 @@ def get_kmtnet_lightcurves(year):
         
     Outputs
     -------
-    sqlite table called kmtnet_<YYYY> in microlensing.db
-    Columns are hjd (HJD - 245000), mag, mag_err, alert_name, and lightcurve (the pysis name).
+    sqlite table called photometry in microlensing.db
+    Columns are hjd (HJD - 245000), mag, mag_err, alert_name, and telescope (the pysis name).
     """
     # Figure out how many objects there are by counting how many columns
     # there are on the alert page.
@@ -215,13 +218,13 @@ def get_kmtnet_lightcurves(year):
                                         'mag_err', 'fwhm', 'sky', 'secz'])
 
                 # Add columns for the alert name (of the form KBYYNNNN, YY=year, NNNN=alert number)
-                # and the name of the lightcurve's pysis file.
+                # and telescope (lightcurve's pysis file.)
                 df['alert_name'] = 'KB' + year[2:] + str(nn).zfill(4) 
-                df['lightcurve'] = pysis_name
+                df['telescope'] = pysis_name
 
-                # Write out the HJD, mag, mag_err, lightcurve, and alert_name data into the table.
-                cols = ['hjd', 'mag', 'mag_err', 'lightcurve', 'alert_name']
-                df[cols].to_sql(con=engine, schema=None, name="kmtnet_lightcurves_" + year, 
+                # Write out the HJD, mag, mag_err, telescope, and alert_name data into the table.
+                cols = ['hjd', 'mag', 'mag_err', 'telescope', 'alert_name']
+                df[cols].to_sql(con=engine, schema=None, name="photometry", 
                                 if_exists="append", index=False)
     t1 = time.time()             
     
@@ -317,17 +320,70 @@ def get_moa_alerts(year):
     
     # Put it all into a dataframe and write out to the database.
     df = pd.DataFrame(parallel_results,
-                     columns = ['alert_name', 'RA', 'Dec', 'tmax', 'tmax_e', 'tE', 'tE_e', 
-                                'u0', 'u0_e', 'Ibase', 'Ibase_e', 'assessment', 'alert_url'])
-
-    # Write HJD as HJD - 2450000 (less cumbersome digits)
-    df['tmax'] -= 2450000
+                     columns = ['alert_name', 'RA', 'Dec', 't0', 't0_err', 'tE', 'tE_err', 
+                                'u0', 'u0_err', 'Ibase', 'Ibase_err', 'class', 'alert_url'])
     
-    df.to_sql(con=engine, schema=None, name="moa_alerts_" + year, if_exists="replace", index=False)
+    # Write HJD as HJD - 2450000 (less cumbersome digits)
+    df['t0'] -= 2450000
+    
+    # Fill in the other columns
+    df['Amax'] = calculate_A(df['u0'])
+    df['Amax_err'] = calculate_Aerr(df['u0'], df['u0_err'])
+    df['Isrc'] = np.nan
+    df['Isrc_err'] = np.nan
+    df['Dmag'] = np.nan
+    df['Dmag_err'] = np.nan
+    df['srcfrac'] = np.nan
+    df['srcfrac_err'] = np.nan
+    
+    df.to_sql(con=engine, schema=None, name="alerts", if_exists="append", index=False)
     
     _t1 = time.time()
     print('Took {0:.2f} seconds'.format(_t1-_t0))
 
+def calculate_A(u):
+    """
+    Calculate amplification A given separation u.
+    """
+    numer = u**2 + 2
+    denom = u * np.sqrt(u**2 + 4)
+    A = numer/denom
+    
+    return A 
+
+def calculate_Aerr(u, u_err):
+    """
+    Calculate amplification error Aerr given 
+    separation u and separation error u_err.
+    """
+    denom = u**2 * (u**2 + 4)**1.5
+    dA_du_abs = 8/denom
+    Aerr = dA_du_abs * u_err
+    
+    return Aerr
+
+def calculate_srcfrac(mag_src, mag_base):
+    """
+    Calculate the source flux fraction srcfrac given
+    source magnitude mag_src and baseline magnitude mag_base.
+    """
+    exp = -0.4 * (mag_src - mag_base)
+    srcfrac = 10**exp
+    
+    return srcfrac
+    
+def calculate_deltamag(Amax, srcfrac):
+    """
+    FIXME: Why can't I match ogle??
+    
+    Calculate the difference between source and baseline magnitude 
+    given the maximum amplification Amax and source flux fraction srcfrac.
+    """
+    arg = (Amax - 1) * srcfrac + 1
+    deltamag = 2.5 * np.log10(arg)
+    
+    return deltamag
+    
 def get_ogle_params(year, nn):  
     """
     Get all the different OGLE alert parameters (along with their uncertainties)
@@ -429,14 +485,17 @@ def get_ogle_alerts(year):
 
     # Put it all into a dataframe and write out to the database.
     df = pd.DataFrame(parallel_results,
-                     columns =['alert_name', 'RA', 'Dec', 'Tmax', 'Tmax_e', 'tau', 'tau_e', 
-                               'Umin', 'Umin_e', 'Amax', 'Amax_e', 'Dmag', 'Dmag_e', 
-                               'fbl', 'fbl_e', 'Ibl', 'Ibl_e', 'I0', 'I0_e', 'alert_url'])
+                     columns =['alert_name', 'RA', 'Dec', 't0', 't0_err', 'tE', 'tE_err', 
+                               'u0', 'u0_err', 'Amax', 'Amax_err', 'Dmag', 'Dmag_err', 
+                               'srcfrac', 'srcfrac_err', 'Ibase', 'Ibase_err', 'Isrc', 'Isrc_err', 'alert_url'])
 
+    # Add in missing columns
+    df['class'] = 'microlensing'
+    
     # Write HJD as HJD - 2450000 (less cumbersome digits)
-    df['Tmax'] -= 2450000
+    df['t0'] -= 2450000
 
-    df.to_sql(con=engine, schema=None, name="ogle_alerts_" + year, if_exists="replace", index=False)
+    df.to_sql(con=engine, schema=None, name="alerts", if_exists="append", index=False)
     
     print('Took {0:.2f} seconds'.format(_t1-_t0))
     
@@ -500,9 +559,18 @@ def get_kmtnet_alerts(year):
         raise Exception('Not a valid year')
 
     # Process output to get strings/floats as appropriate.
-    tE_list = [kmtnet_str_to_float(item) for item in tE]
+    RA_list = [item.get_text().replace(u'\xa0', u'') for item in RA]
+    Dec_list = [item.get_text().replace(u'\xa0', u'') for item in Dec]
+    t_0_list = [kmtnet_str_to_float(item) for item in t_0]
+    t_E_list = [kmtnet_str_to_float(item) for item in t_E]
+    u_0_list = [kmtnet_str_to_float(item) for item in u_0]
+    Isource_list = [kmtnet_str_to_float(item) for item in Isource]
     Ibase_list = [kmtnet_str_to_float(item) for item in Ibase]
-    class_list = [item.get_text().replace(u'\xa0', u'') for item in class_]
+    if year in ['2022', '2020', '2017', '2016']:
+        class_list = [item.get_text().replace(u'\xa0', u'') for item in class_]
+    elif year in ['2021', '2019', '2018']:
+        classEF_list = [item.get_text().replace(u'\xa0', u'') for item in classEF]
+        classAL_list = [item.get_text().replace(u'\xa0', u'') for item in classAL]
 
     # Get link to the alert page.
     if year in ['2022', '2020', '2017', '2016']:
@@ -515,13 +583,33 @@ def get_kmtnet_alerts(year):
     alert_url_list = [kmt_alert_url + item.find_all('a', href=True)[0]['href'] for item in alert_url]
 
     # Get alert name
-    nn = len(tE_list)
+    nn = len(t_E_list)
     alert_name = []
     for ii in np.arange(nn):
         alert_name.append('KB' + year[2:] + str(ii+1).zfill(4))
 
-    # Put it all into a dataframe and write out to the database.
-    df = pd.DataFrame(list(zip(alert_name, cat_list, tE_list, Ibase_list, alert_url_list)),
-                     columns =['alert_name', 'class', 'tE', 'Ibase', 'alert_url'])
-
-    df.to_sql(con=engine, schema=None, name="kmtnet_alerts_" + year, if_exists="replace", index=False)
+    if year in ['2022', '2020', '2017', '2016']:
+        # Put it all into a dataframe and write out to the database.
+        df = pd.DataFrame(list(zip(alert_name, RA_list, Dec_list, t_0_list, t_E_list, u_0_list, 
+                                   Isource_list, Ibase_list, class_list, alert_url_list)),
+                         columns =['alert_name', 'RA', 'Dec', 't0', 'tE', 'u0',
+                                   'Isrc', 'Ibase', 'class', 'alert_url'])
+    elif year in ['2021', '2019', '2018']:
+        df = pd.DataFrame(list(zip(alert_name, RA_list, Dec_list, t_0_list, t_E_list, u_0_list, 
+                           Isource_list, Ibase_list, classEF_list, alert_url_list)),
+                 columns =['alert_name', 'RA', 'Dec', 't0', 'tE', 'u0',
+                           'Isrc', 'Ibase', 'class', 'alert_url'])
+     
+    df['t0_err'] = np.nan
+    df['tE_err'] = np.nan
+    df['u0_err'] = np.nan
+    df['Amax'] = calculate_A(df['u0'])
+    df['Amax_err'] = np.nan
+    df['Ibase_err'] = np.nan
+    df['Isrc_err'] = np.nan
+    df['Dmag'] = np.nan
+    df['Dmag_err'] = np.nan
+    df['srcfrac'] = calculate_srcfrac(df['Isrc'], df['Ibase'])
+    df['srcfrac_err'] = np.nan
+    
+    df.to_sql(con=engine, schema=None, name="alerts", if_exists="append", index=False)

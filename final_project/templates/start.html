@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <body>
+    <p>
+      Tables in database available to query:<br>
+      <ul>
+        {% for thing in dbs %}
+        <li>{{ thing }}</li>
+        {% endfor %}  
+      </ul>
+    </p>
+    <p><a href="{{ query_db }}">Query the collection here.</a></p>
+    <p><a href="{{ browse_moa }}">Browse MOA lightcurves in magnitude space here.</a></p>
+  </body>
+</html>
