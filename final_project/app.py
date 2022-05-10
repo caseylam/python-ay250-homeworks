@@ -13,12 +13,13 @@ from matplotlib.figure import Figure
 import io
 import base64
 import numexpr as ne
+from flask import make_response
 
 app = Flask(__name__)
 
 engine = create_engine('sqlite:///microlensing.db')
-conn = engine.connect()
-
+# conn = engine.connect()
+# with engine.connect() as connection:
 @app.route('/', methods=['GET', 'POST'])
 def start_page():
     """
@@ -104,6 +105,17 @@ def web_download_to_db():
     
     return render_template('download_data.html', start_page=url_for('start_page'))
 
+@app.route('/download_csv/<query_str>', methods=['GET', 'POST'])
+def download_csv(query_str):
+    with engine.connect() as conn:
+        df = pd.read_sql(query_str, conn)
+        print(df.columns)
+    resp = make_response(df.to_csv())
+    resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
+    resp.headers["Content-Type"] = "text/csv"
+    
+    return resp
+
 @app.route('/query', methods=['GET', 'POST'])
 def query_db():
     """
@@ -112,19 +124,21 @@ def query_db():
     if request.method == 'POST':
         query_str = request.form['query']
         db_info = engine.execute(query_str).fetchall()
-        
+
         if len(db_info) == 0:
             return render_template('display_empty.html', 
                                    query_str=query_str,
                                    query_db=url_for('query_db'),
                                    start_page=url_for('start_page'))
         else:
+        
             return render_template('display.html', 
                                    query_str=query_str,
                                    len = len(db_info), 
                                    db_info = db_info, 
-                                   start_page=url_for('start_page'))
-
+                                   start_page=url_for('start_page'),
+                                   download_csv=url_for('download_csv', query_str=query_str))
+        
     return render_template('query.html', 
                            web_download_to_db=url_for('web_download_to_db'),
                            start_page=url_for('start_page'), 
@@ -247,16 +261,16 @@ def plot_moa(moa_alert_name):
     fig = create_figure(time[keep_idx], mag[keep_idx], mag_err[keep_idx], moa_alert_name)
     
     # Figure out which entry in the list this is so we know which template to use below.
+    # Tried to get all those if statement below into the template but couldn't get it quite to work...
     n_lc = len(moa_names)
     ii = moa_names.index(moa_alert_name)
 
-    # Tried to get this if statement into the template but couldn't get it quite to work...
-    # FIXME: Need a catch for edge case with only one result.
-    # First page.
+    # Catch edge case with only one result.
     if n_lc == 1:
         return render_template('show_moa_lc_one.html', 
                                 home=url_for('start_page'),
                                 image=fig)
+    # First page.
     if ii == 0:
         return render_template('show_moa_lc_first.html', 
                                 home=url_for('start_page'),
@@ -314,6 +328,6 @@ def browse_moa():
                                 moa_lcs=moa_lcs,
                                 web_download_to_db=url_for('web_download_to_db'),
                                 start_page=url_for('start_page'))
-
+    
 if __name__ == '__main__':
     app.run(port=8000, debug = True)
