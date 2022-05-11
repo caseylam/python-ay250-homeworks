@@ -1,9 +1,46 @@
-This is a Flask webapp that allows the user to download model parameters and lightcurves from the
+# MAD 
+Microlensing Alerts Database (MAD) is a Flask webapp that allows the user to 
+interact with a database of event parameters and lightcurves from the
 [MOA](http://www.massey.ac.nz/~iabond/moa/alerts/), 
 [OGLE](https://ogle.astrouw.edu.pl/ogle4/ews/), and
 [KMTNet](https://kmtnet.kasi.re.kr/~ulens/)
-microlensing alert websites to a database.
+microlensing alert websites.
 
-It lets the user download stuff and then query the database.
+With MAD, the user can query the database and download the results as a CSV file.
 
-It also allows the user to view MOA lightcurves in magnitude space (instead of flux difference space, which is not easily interpretable).
+In addition, the user can use the query to view lightcurves.
+
+### Background and motivation:
+Our research group is looking for isolated stellar mass black holes with microlensing.
+We want to choose promising black hole candidates from photometric microlensing 
+alert systems to follow up astrometrically for our HST Cycle 29 program.
+The way we've done this in the past is to look through individual alert pages for events of interest.
+However, this is not ideal for many reasons:
+1. It is very time consuming to click through each alert page one at a time to look at lightcurves.
+Although all the fit parameters are located on the home page, MOA and OGLE report uncertainties 
+on their parameters which are only shown on the individual event pages.
+2. The active alert page for the current year are updated on a regular (nightly) basis.
+This means that the reported best-fit microlensing model parameters also get updated, 
+so an event that looks promising might not be so good two weeks later or vice versa.  
+3. Sometimes we want to re-analyze a set of lightcurves, 
+and having to go page by page to download what we want is also time consuming.
+4. Combining all the issues above leads to a general mess.
+This also makes the process likely less thorough.
+5. For MOA in particular, the lightcurves provided for visualization on the alert website
+are shown as difference image lightcurves, i.e. delta flux vs. time. 
+However, this is impossible to interpret in the sense that we care about (i.e. what is the
+difference between the baseline and peak magnification?)
+
+### Goal of MAD: 
+MAD was created to help alleviate these issues.
+By aggregating all the alerts into a database, we can easily query a table of 
+alert parameters to find the events that are most promising.
+Then, we can use JOIN queries to grab the photometry data for those events
+to re-analyze and visualize ourselves.
+The database can then also be easily updated to grab the latest changes, and
+the same query can be re-run, to see what changes.
+
+### Final project practicalities
+This project uses a lot of concepts from the web and databases lectures.
+There is also a bit of pandas useage and a small bit of parallelization.
+
