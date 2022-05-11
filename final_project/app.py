@@ -20,96 +20,16 @@ app = Flask(__name__)
 # The database.
 engine = create_engine('sqlite:///microlensing.db')
 
-# Check if tables exists yet, if not, then populate?
+# @app.route('/', methods=['GET', 'POST'])
+# def start_page():
+#     """
+#     Homepage. Provides option to query the database
+#     or view lightcurves.
+#     """
 
-@app.route('/', methods=['GET', 'POST'])
-def start_page():
-    """
-    Homepage. Depending on whether there is a database or not,
-    will either prompt you to download, or will give you the 
-    option to download, query, or view MOA lightcurves.
-    """
-#     if engine.table_names() == []:
-#         return render_template('start_empty.html', 
-#                                web_download_to_db=url_for('web_download_to_db'))
-
-#     else:
-#         return render_template('start_filled.html', 
-#                                dbs=engine.table_names(),
-#                                web_download_to_db=url_for('web_download_to_db'), 
-#                                query_db=url_for('query_db'),
-#                                browse_moa=url_for('browse_moa'))
-    return render_template('start.html', 
-                           dbs=engine.table_names(),
-                           query_db=url_for('query_db'),
-                           browse_moa=url_for('browse_moa'))
-
-# @app.route('/update', methods=['GET', 'POST'])
-def web_download_to_db():
-    """
-    Page that lets you pick what data to download.
-    """
-    if request.method == 'POST':
-        
-        # We divide up datasets into things that have:
-        # 1) already been downloaded (duplicate)
-        # 2) already been downloaded, but are
-        #    from the current year of alerts (update)
-        # 3) not yet been downloaded (download)
-        duplicate_list = []
-        update_list = []
-        download_list = []
-
-        this_year = str(datetime.date.today().year)
-        this_year = '2019' # FIXME TEMPORARY FOR DEBUGGING.
-
-        keys = list(request.form.to_dict().keys())
-        for ii, key in enumerate(keys):
-            system, data, year = key.split('_')
-            print(key)
-
-            if key in engine.table_names():
-                if this_year == year:
-                    update_list.append(key)
-                    # FIXME: DELETE THE OLD TABLE FROM THE DATABASE.
-                else:
-                    duplicate_list.append(key)
-            else:
-                download_list.append(key)
-
-        # If dataset is in download or update list, then download
-        # the right combo of KMTNet/OGLE/MOA lightcurves/alerts.
-        for ii, key in enumerate(keys):
-            system, data, year = key.split('_')
-            if key in update_list + download_list:
-                if system == 'kmtnet':
-                    if data == 'alerts':
-                        query_alerts.get_kmtnet_alerts(year)
-                    else: 
-                        query_alerts.get_kmtnet_lightcurves(year)
-                elif system == 'ogle':
-                    if data == 'alerts':
-                        query_alerts.get_ogle_alerts(year)
-                    else: 
-                        query_alerts.get_ogle_lightcurves(year)
-                elif system == 'moa': 
-                    if data == 'alerts':
-                        query_alerts.get_moa_alerts(year)
-                    else:
-                        query_alerts.get_moa_lightcurves(year)
-                else:
-                    raise Exception('That is not a valid survey name!')
-
-        # How to show processing? Googling "stream" and "dynamic" but I don't think that's what I want.
-        return render_template('download_results.html', 
-                                duplicate_list=duplicate_list,
-                                update_list=update_list,
-                                download_list=download_list,
-                                web_download_to_db=url_for('web_download_to_db'), 
-                                query_db=url_for('query_db'),
-                                start_page=url_for('start_page'))
-    
-    return render_template('download_data.html', start_page=url_for('start_page'))
+#     return render_template('start.html', 
+#                            query_db=url_for('query_db'),
+#                            browse_moa=url_for('browse_moa'))
 
 @app.route('/download_csv/<query_str>', methods=['GET', 'POST'])
 def download_csv(query_str):
@@ -127,7 +47,8 @@ def download_csv(query_str):
     
     return resp
 
-@app.route('/query', methods=['GET', 'POST'])
+# @app.route('/query', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def query_db():
     """
     Page that provides the interface to query the database.
@@ -139,31 +60,16 @@ def query_db():
         if len(db_info) == 0:
             return render_template('display_empty.html', 
                                    query_str=query_str,
-                                   query_db=url_for('query_db'),
-                                   start_page=url_for('start_page'))
-        else:
-        
+                                   query_db=url_for('query_db'))
+        else:        
             return render_template('display.html', 
                                    query_str=query_str,
                                    len = len(db_info), 
                                    db_info = db_info, 
-                                   start_page=url_for('start_page'),
                                    download_csv=url_for('download_csv', query_str=query_str))
         
-    return render_template('query.html', 
-#                           web_download_to_db=url_for('web_download_to_db'),
-                           start_page=url_for('start_page'), 
-                           alert_column_names=url_for('alert_column_names'),
-                           dbs=engine.table_names())
+    return render_template('query.html')
 
-@app.route('/alert_column_names', methods=['GET', 'POST'])
-def alert_column_names():
-    """
-    Page that lists all the alert column names.
-    """
-    return render_template('alert_help.html', 
-                           query_db=url_for('query_db'),
-                           start_page=url_for('start_page'))
 
 def create_figure(time, mag, mag_err, moa_alert_name):
     """
@@ -279,26 +185,26 @@ def plot_moa(moa_alert_name):
     # Catch edge case with only one result.
     if n_lc == 1:
         return render_template('show_moa_lc_one.html', 
-                                home=url_for('start_page'),
+                                home=url_for('query_db'),
                                 image=fig)
     # First page.
     if ii == 0:
         return render_template('show_moa_lc_first.html', 
-                                home=url_for('start_page'),
+                                home=url_for('query_db'),
                                 next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
                                 moa_names=moa_names,
                                 image=fig)
     # Last page.
     elif ii == n_lc - 1:
         return render_template('show_moa_lc_last.html', 
-                                home=url_for('start_page'),
+                                home=url_for('query_db'),
                                 prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
                                 moa_names=moa_names,
                                 image=fig)
     # Middle pages.
     else:
         return render_template('show_moa_lc.html', 
-                                home=url_for('start_page'),
+                                home=url_for('query_db'),
                                 next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
                                 prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
                                 qmax=n_lc-1,
