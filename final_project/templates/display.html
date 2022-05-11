@@ -5,18 +5,22 @@
 </head>
 <body>
 
-<p>SQL query: {{ query_str }}</p>
+  <p>SQL query: {{ query_str }}</p>
 
-<p><a href="{{ download_csv }}">Click here to download query result as a CSV.</a></p>
+  <p><a href="{{ download_csv }}">Click here to download query result as a CSV.</a></p>
 
-<ol>
-<!-- For loop logic of jinja template -->
-{%for i in range(0, len)%}
+  {% if browse_lc %}
+  <p><a href="{{ browse_lightcurves }}">Click here to browse the lightcurves of these events.</a></p>
+  {% endif %}
   
+  <ol>
+    <!-- For loop logic of jinja template -->
+    {%for i in range(0, len)%}
+    
     <li>{{ db_info[i] }}</li>
-{%endfor%}
-</ol>
-
-<p><a href="{{ start_page }}">Back to home.</a></p>
+    {%endfor%}
+  </ol>
+  
+  <p><a href="{{ start_page }}">Back to home.</a></p>
 </body>
 </html>
