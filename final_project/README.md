@@ -54,6 +54,15 @@ This is a very short script that calls query_alerts.py that populates the databa
 
 Before the Flask app can be used, populate_database.py must be run.
 
+The database is called `microlensing.db` and consists of two tables, 
+`alerts` and `photometry`.
+The primary key for `alerts` is `alert_name`. 
+The table also contains the microlensing parameters reported by the alert system,
+as well as URLs to the original alert pages, among other information.
+In `photometry`, `alert_name` is the foreign key.
+Each row in the table also contains the date, magnitude, magnitude uncertainty, 
+and telescope information for each observation.
+
 ### Final project practicalities
 This project uses a lot of concepts from the web and databases lectures.
 There is also a bit of numpy/pandas and parallelization usage.
@@ -69,4 +78,4 @@ I just need to scrape it and put it into a new table.
 3. Save less decimals for some of the numbers in the table (like HJD or mag).
 4. Implementing some automated way of updating the database.
 (See notes from meeting with Josh.)
-5. More unit tests (of course).
+5. Add unit tests.
