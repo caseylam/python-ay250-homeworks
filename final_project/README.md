@@ -8,7 +8,7 @@ microlensing alert websites.
 
 With MAD, the user can query the database and download the results as a CSV file.
 
-In addition, the user can use the query to view lightcurves.
+In addition, the user can query the database to choose lightcurves to view.
 
 ### Background and motivation:
 Our research group is looking for isolated stellar mass black holes with microlensing.
@@ -31,7 +31,6 @@ are shown as difference image lightcurves, i.e. delta flux vs. time.
 However, this is impossible to interpret in the sense that we care about (i.e. what is the
 difference between the baseline and peak magnification?)
 
-### Goal of MAD: 
 MAD was created to help alleviate these issues.
 By aggregating all the alerts into a database, we can easily query a table of 
 alert parameters to find the events that are most promising.
@@ -40,34 +39,36 @@ to re-analyze and visualize ourselves.
 The database can then also be easily updated to grab the latest changes, and
 the same query can be re-run, to see what changes.
 
-### General structure
-There are three files:
-1. *app.py*. 
+### Workflow/general structure of MAD
+There are three python files:
+1. `app.py`. 
 This is the Flask app itself.
-2. *query_alerts.py*. 
+2. `query_alerts.py`. 
 This is a module that contains a bunch of functions 
 that can be used to  populate the database.
 It primarily consists of functions that scrape microlensing event alerts 
 and lightcurves from the OGLE, KMTNet, and MOA websites.
-3. *populate_database.py*.
-This is a very short script that calls query_alerts.py that populates the database.
+3. `populate_database.py`.
+This is a very short script that calls `query_alerts.py` that populates the database.
+This can (and should) be edited by the user depending on what set of alerts and photometry
+they are particularly interested in.
 
-Before the Flask app can be used, populate_database.py must be run.
+Note that before the Flask app (`app.py`) can be run, `populate_database.py` must have been run.
 
-The database is called `microlensing.db` and consists of two tables, 
-`alerts` and `photometry`.
-The primary key for `alerts` is `alert_name`. 
-The table also contains the microlensing parameters reported by the alert system,
+By running `populate_database.py`, a database called `microlensing.db` is created.
+It consists of up to two tables, `alerts` and `photometry`.
+The primary key for the `alerts` table is `alert_name`. 
+The `alerts` table also contains the microlensing parameters reported by the alert system,
 as well as URLs to the original alert pages, among other information.
-In `photometry`, `alert_name` is the foreign key.
-Each row in the table also contains the date, magnitude, magnitude uncertainty, 
+In the `photometry` table, `alert_name` is the foreign key.
+Each row in the `photometry` table also contains the date, magnitude, magnitude uncertainty, 
 and telescope information for each observation.
 
 ### Final project practicalities
 This project uses a lot of concepts from the web and databases lectures.
 There is also a bit of numpy/pandas and parallelization usage.
 
-### Future work (aka things I did not get to)
+### Future work (aka things I did not get to before the project was due)
 In no particular order...
 1. Parallelize lightcurve download (currently ~1 hour for each alert system year). 
 Need to figure out parallel writing to SQL database (is that allowed) as well as
@@ -79,3 +80,7 @@ I just need to scrape it and put it into a new table.
 4. Implementing some automated way of updating the database.
 (See notes from meeting with Josh.)
 5. Add unit tests.
+6. Better error handling (e.g. if you put in an invalid SQL query, right now,
+the Flask app will just fail-- ideally, it should bring you to a page that 
+explains why the error exists, then prompts you for another query). 
+7. Caching or some way to make the lightcurve viewing faster.
