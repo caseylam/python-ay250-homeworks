@@ -4,7 +4,6 @@ import numpy as np
 from flask import Flask, Response, flash, request, redirect, url_for, send_from_directory, render_template
 from werkzeug.utils import secure_filename
 import sqlite3
-# import query_alerts
 from sqlalchemy import create_engine, text
 from sqlalchemy.sql import select
 import datetime
