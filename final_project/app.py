@@ -29,7 +29,6 @@ def download_csv(query_str):
     """
     with engine.connect() as conn:
         df = pd.read_sql(query_str, conn)
-        print(df.columns)
     resp = make_response(df.to_csv())
     resp.headers["Content-Disposition"] = "attachment; filename=export.csv"
     resp.headers["Content-Type"] = "text/csv"
@@ -54,7 +53,6 @@ def query_db():
                 browse_lc=True
             else:
                 browse_lc=False
-            print(len(db_info))
 
         if len(db_info) == 0:
             # Do I need to pass in URLs here or not??? How 
@@ -149,7 +147,6 @@ def plot_lightcurve(alert_name):
     """
     Page that shows the MOA lightcurve in magnitude space.
     """
-    
     # Year string.
     YY = alert_name[2:4]
     
@@ -157,8 +154,6 @@ def plot_lightcurve(alert_name):
     # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
     
     # Grab the MOA hjd, mag, mag_err corresponding to the alert name.
-#     query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_20' + YY + \
-#                 ' WHERE alert_name = "' + moa_alert_name + '"' 
     query_str = 'SELECT hjd, mag, mag_err FROM photometry WHERE alert_name = "' + alert_name + '"' 
     
     # The *1 is just a dumb trick to turn it into an integer.
@@ -174,7 +169,6 @@ def plot_lightcurve(alert_name):
     time = np.array([info[0] for info in db_info])
     mag = np.array([info[1] for info in db_info])
     mag_err = np.array([info[2] for info in db_info])
-    
     # Now only keep things from the year of and before.
     keep_idx = np.where((time < end_date) & (time > start_date))[0]
     
@@ -183,156 +177,47 @@ def plot_lightcurve(alert_name):
     
     # Figure out which entry in the list this is so we know which template to use below.
     # Tried to get all those if statement below into the template but couldn't get it quite to work...
-    alert_names = df_with_alert_names['alert_name'].tolist()
+#    alert_names = df_with_alert_names['alert_name'].tolist()
+    alert_names = list(set(df_with_alert_names['alert_name'].tolist()))
     n_lc = len(alert_names)
-    print(alert_names)
     ii = alert_names.index(alert_name)
 
     # Catch edge case with only one result.
     if n_lc == 1:
-        return render_template('show_moa_lc_one.html', 
+        return render_template('show_lightcurve_one.html', 
                                 home=url_for('query_db'),
                                 image=fig)
     # First page.
     if ii == 0:
-        return render_template('show_moa_lc_first.html', 
+        return render_template('show_lightcurve_first.html', 
                                 home=url_for('query_db'),
                                 next_page=url_for('plot_lightcurve', alert_name=alert_names[ii+1]), 
-                                moa_names=alert_names,
+                                alert_names=alert_names,
                                 image=fig)
     # Last page.
     elif ii == n_lc - 1:
-        return render_template('show_moa_lc_last.html', 
+        return render_template('show_lightcurve_last.html', 
                                 home=url_for('query_db'),
                                 prev_page=url_for('plot_lightcurve', alert_name=alert_names[ii-1]), 
-                                moa_names=alert_names,
+                                alert_names=alert_names,
                                 image=fig)
     # Middle pages.
     else:
-        return render_template('show_moa_lc.html', 
+        return render_template('show_lightcurve.html', 
                                 home=url_for('query_db'),
                                 next_page=url_for('plot_lightcurve', alert_name=alert_names[ii+1]), 
                                 prev_page=url_for('plot_lightcurve', alert_name=alert_names[ii-1]), 
                                 qmax=n_lc-1,
-                                moa_names=alert_names,
-                                image=fig)
-
-@app.route('/fig/<moa_alert_name>')
-def plot_moa(moa_alert_name):
-    """
-    Page that shows the MOA lightcurve in magnitude space.
-    """
-    # Check if variable exists first.
-    # https://stackoverflow.com/questions/843277/how-do-i-check-if-a-variable-exists
-        
-    # Year string.
-    YY = moa_alert_name[2:4]
-    
-    # Grab the MOA hjd, mag, mag_err corresponding to the alert name.
-#     query_str = 'SELECT hjd, mag, mag_err FROM moa_lightcurves_20' + YY + \
-#                 ' WHERE alert_name = "' + moa_alert_name + '"' 
-    query_str = 'SELECT hjd, mag, mag_err FROM photometry WHERE alert_name = "' + alert_name + '"' 
-    
-    # The *1 is just a dumb trick to turn it into an integer.
-    year = ne.evaluate(YY) * 1 
-    hjd_jan_00 = 1154
-    
-    start_date = hjd_jan_00 + 365.25 * (year)
-    end_date = hjd_jan_00 + 365.25 * (year + 2) # This gives us data through that year's alert season.
-    # Why is it year and year+2? Should be year -1 and year+1?
-    
-    # Get hjd, mag, mag_err from the query.
-    db_info = engine.execute(query_str).fetchall()
-    time = np.array([info[0] for info in db_info])
-    mag = np.array([info[1] for info in db_info])
-    mag_err = np.array([info[2] for info in db_info])
-    
-    # Now only keep things from the year of and before.
-    keep_idx = np.where((time < end_date) & (time > start_date))[0]
-    
-    # Make the plot.
-    fig = create_figure(time[keep_idx], mag[keep_idx], mag_err[keep_idx], alert_name)
-    
-    # Figure out which entry in the list this is so we know which template to use below.
-    # Tried to get all those if statement below into the template but couldn't get it quite to work...
-    n_lc = len(moa_names)
-    ii = moa_names.index(alert_name)
-
-    # Catch edge case with only one result.
-    if n_lc == 1:
-        return render_template('show_moa_lc_one.html', 
-                                home=url_for('query_db'),
-                                image=fig)
-    # First page.
-    if ii == 0:
-        return render_template('show_moa_lc_first.html', 
-                                home=url_for('query_db'),
-                                next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-                                moa_names=moa_names,
-                                image=fig)
-    # Last page.
-    elif ii == n_lc - 1:
-        return render_template('show_moa_lc_last.html', 
-                                home=url_for('query_db'),
-                                prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                                moa_names=moa_names,
-                                image=fig)
-    # Middle pages.
-    else:
-        return render_template('show_moa_lc.html', 
-                                home=url_for('query_db'),
-                                next_page=url_for('plot_moa', moa_alert_name=moa_names[ii+1]), 
-                                prev_page=url_for('plot_moa', moa_alert_name=moa_names[ii-1]), 
-                                qmax=n_lc-1,
-                                moa_names=moa_names,
+                                alert_names=alert_names,
                                 image=fig)
     
 @app.route('/browse_lightcurves', methods=['GET', 'POST'])
 def browse_lightcurves():
+#    alert_names = df_with_alert_names['alert_name'].tolist()
+    alert_names = list(set(df_with_alert_names['alert_name'].tolist()))
     
-    alert_names = df_with_alert_names['alert_name']
-    
-    # moa_names = [str(mname).strip(',()\'') for mname in db_info]
-    return render_template('moa_lightcurves_list.html', 
-                            alert_names=alert_names,
-                            browse_moa=url_for('browse_lightcurves'))
-
-# @app.route('/browse_moa', methods=['GET', 'POST'])
-# def browse_moa():
-#     """
-#     Page that lets you pick which MOA lightcurves you want to plot in magnitude space.
-#     """
-#     if request.method == 'POST':
-#         query_str = request.form['query']
-#         db_info = engine.execute('SELECT DISTINCT alert_name ' + query_str).fetchall()
-        
-#         if len(db_info) == 0:
-#             return 'Nothing' # Make this a page.
-#         else:
-#             n_lc = len(db_info) + 1
-        
-#             # Make the names of the moa lightcurves here a global function...
-#             # Is there a better way to do this??????
-#             global moa_names
-#             moa_names = [str(mname).strip(',()\'') for mname in db_info]
-#             return render_template('moa_lightcurves_list.html', 
-#                                     alert_names=moa_names,
-#                                     browse_moa=url_for('browse_moa'))
-        
-#     dbs=engine.table_names()
-#     # FIXME: WILL HAVE TO CHANGE THIS.
-#     moa_lcs = [dbname for dbname in dbs if 'moa_lightcurves' in dbname]
-#     if moa_lcs == []:
-#         return render_template('moa_lightcurves_list.html',
-#                                 plot_moa=url_for('web_download_to_db'),
-#                                 start_page=url_for('start_page'))
-#     else:
-#         return render_template('moa_lightcurves_exist.html',
-#                                 moa_lcs=moa_lcs,
-#                                 web_download_to_db=url_for('web_download_to_db'),
-#                                 start_page=url_for('start_page'))
-#     return render_template('moa_lightcurves.html',
-#                             moa_lcs=moa_lcs)
+    return render_template('lightcurves_list.html', 
+                            alert_names=alert_names)
 
 
 if __name__ == '__main__':

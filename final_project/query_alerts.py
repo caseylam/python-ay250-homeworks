@@ -152,8 +152,11 @@ def get_ogle_lightcurves(year):
 
         # Add a column for the alert name (of the form OBYYNNNN, YY=year, NNN=alert number)
         # and telescope (OGLE)
-        df['alert_name'] = 'OB' + year[2:] + str(nn + 1).zfill(4) 
+        df['alert_name'] = 'OB' + year[2:] + str(nn).zfill(4) 
         df['telescope'] = 'OGLE'
+        
+        # Write HJD as HJD - 2450000 (less cumbersome digits)
+        df['hjd'] -= 2450000
         
         # Write out the HJD, mag, mag_err, telescope, and alert_name data into the table.
         cols = ['hjd', 'mag', 'mag_err', 'telescope', 'alert_name']
